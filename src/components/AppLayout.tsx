@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { PawPrint, LayoutDashboard, Users, Heart, LogOut } from 'lucide-react';
+import { PawPrint, LayoutDashboard, Users, Heart, Calendar, LogOut } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
