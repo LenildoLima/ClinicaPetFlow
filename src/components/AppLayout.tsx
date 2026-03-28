@@ -19,6 +19,7 @@ const navItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Tutores', url: '/tutores', icon: Users },
   { title: 'Pets', url: '/pets', icon: Heart },
+  { title: 'Agenda', url: '/agenda', icon: Calendar },
 ];
 
 function AppSidebar() {
