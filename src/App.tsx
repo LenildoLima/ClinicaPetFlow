@@ -9,6 +9,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Tutores from "./pages/Tutores";
 import Pets from "./pages/Pets";
+import Agenda from "./pages/Agenda";
+import Prontuario from "./pages/Prontuario";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/tutores" element={<ProtectedRoute><AppLayout><Tutores /></AppLayout></ProtectedRoute>} />
             <Route path="/pets" element={<ProtectedRoute><AppLayout><Pets /></AppLayout></ProtectedRoute>} />
+            <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
+            <Route path="/prontuario/:consultaId" element={<ProtectedRoute><AppLayout><Prontuario /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

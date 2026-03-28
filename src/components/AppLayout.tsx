@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { PawPrint, LayoutDashboard, Users, Heart, LogOut } from 'lucide-react';
+import { PawPrint, LayoutDashboard, Users, Heart, Calendar, LogOut } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ const navItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Tutores', url: '/tutores', icon: Users },
   { title: 'Pets', url: '/pets', icon: Heart },
+  { title: 'Agenda', url: '/agenda', icon: Calendar },
 ];
 
 function AppSidebar() {
