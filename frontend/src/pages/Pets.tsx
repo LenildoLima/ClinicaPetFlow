@@ -9,7 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Heart } from 'lucide-react';
+import { Plus, Search, Heart, Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Tutor { id: string; nome: string }
 interface Pet {
@@ -20,11 +30,36 @@ interface Pet {
   sexo: string;
   data_nascimento: string;
   castrado: boolean;
+  observacoes: string;
   tutor_id: string;
   tutores: { nome: string } | null;
 }
 
-const emptyForm = { nome: '', especie: '', raca: '', sexo: '', data_nascimento: '', castrado: false, tutor_id: '' };
+const emptyForm = { 
+  nome: '', 
+  especie: '', 
+  raca: '', 
+  sexo: '', 
+  data_nascimento: '', 
+  castrado: false, 
+  observacoes: '',
+  tutor_id: '' 
+};
+
+const especieLabels: Record<string, string> = {
+  cao: 'Cão/Cachorro',
+  gato: 'Gato',
+  passaro: 'Pássaro',
+  roedor: 'Roedor',
+  reptil: 'Réptil',
+  outro: 'Outro',
+};
+
+const sexoLabels: Record<string, string> = {
+  macho: 'Macho',
+  femea: 'Fêmea',
+  nao_informado: 'Não Informado',
+};
 
 export default function Pets() {
   const [pets, setPets] = useState<Pet[]>([]);
@@ -34,6 +69,8 @@ export default function Pets() {
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchPets = async () => {
@@ -56,24 +93,69 @@ export default function Pets() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from('pets').insert([{
+    
+    const payload = {
       nome: form.nome,
       especie: form.especie,
       raca: form.raca,
       sexo: form.sexo,
       data_nascimento: form.data_nascimento || null,
       castrado: form.castrado,
+      observacoes: form.observacoes || '',
       tutor_id: form.tutor_id || null,
-    }]);
+    };
+
+    if (editingId) {
+      const { error } = await supabase.from('pets').update(payload).eq('id', editingId);
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Pet atualizado com sucesso!' });
+        setForm(emptyForm);
+        setEditingId(null);
+        setOpen(false);
+        fetchPets();
+      }
+    } else {
+      const { error } = await supabase.from('pets').insert([payload]);
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Pet cadastrado com sucesso!' });
+        setForm(emptyForm);
+        setOpen(false);
+        fetchPets();
+      }
+    }
+    setLoading(false);
+  };
+
+  const handleEdit = (pet: Pet) => {
+    setForm({
+      nome: pet.nome || '',
+      especie: pet.especie || '',
+      raca: pet.raca || '',
+      sexo: pet.sexo || '',
+      data_nascimento: pet.data_nascimento || '',
+      castrado: pet.castrado || false,
+      observacoes: pet.observacoes || '',
+      tutor_id: pet.tutor_id || '',
+    });
+    setEditingId(pet.id);
+    setOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    
+    const { error } = await supabase.from('pets').delete().eq('id', deleteId);
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Pet cadastrado com sucesso!' });
-      setForm(emptyForm);
-      setOpen(false);
+      toast({ title: 'Pet excluído com sucesso!' });
       fetchPets();
     }
-    setLoading(false);
+    setDeleteId(null);
   };
 
   return (
@@ -83,15 +165,22 @@ export default function Pets() {
           <h1 className="text-2xl font-bold text-foreground">Pets</h1>
           <p className="text-muted-foreground text-sm">Gerencie os pets cadastrados</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) {
+            setForm(emptyForm);
+            setEditingId(null);
+            setTutorSearch('');
+          }
+        }}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Novo Pet</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Cadastrar Pet</DialogTitle>
+              <DialogTitle>{editingId ? 'Editar Pet' : 'Cadastrar Pet'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
               <div className="space-y-1">
                 <Label>Nome</Label>
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
@@ -102,10 +191,12 @@ export default function Pets() {
                   <Select value={form.especie} onValueChange={(v) => setForm({ ...form, especie: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cão">Cão</SelectItem>
-                      <SelectItem value="Gato">Gato</SelectItem>
-                      <SelectItem value="Ave">Ave</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
+                      <SelectItem value="cao">Cão/Cachorro</SelectItem>
+                      <SelectItem value="gato">Gato</SelectItem>
+                      <SelectItem value="passaro">Pássaro</SelectItem>
+                      <SelectItem value="roedor">Roedor</SelectItem>
+                      <SelectItem value="reptil">Réptil</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -120,8 +211,9 @@ export default function Pets() {
                   <Select value={form.sexo} onValueChange={(v) => setForm({ ...form, sexo: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Macho">Macho</SelectItem>
-                      <SelectItem value="Fêmea">Fêmea</SelectItem>
+                      <SelectItem value="macho">Macho</SelectItem>
+                      <SelectItem value="femea">Fêmea</SelectItem>
+                      <SelectItem value="nao_informado">Não Informado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -140,22 +232,34 @@ export default function Pets() {
               </div>
               <div className="space-y-1">
                 <Label>Tutor</Label>
-                <Input
-                  placeholder="Buscar tutor..."
-                  value={tutorSearch}
-                  onChange={(e) => setTutorSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o tutor" /></SelectTrigger>
-                  <SelectContent>
-                    {tutores.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {editingId ? (
+                   <Input value={pets.find(p => p.id === editingId)?.tutores?.nome || '—'} disabled />
+                ) : (
+                  <>
+                    <Input
+                      placeholder="Buscar tutor..."
+                      value={tutorSearch}
+                      onChange={(e) => setTutorSearch(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o tutor" /></SelectTrigger>
+                      <SelectContent>
+                        {tutores.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>Salvar</Button>
+              <div className="space-y-1">
+                <Label>Observações</Label>
+                <Input value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+              </div>
+              <Button type="submit" className="w-full mt-4" disabled={loading}>
+                {editingId ? 'Salvar Alterações' : 'Salvar'}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -190,11 +294,31 @@ export default function Pets() {
                 {pets.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome}</TableCell>
-                    <TableCell>{p.especie}</TableCell>
+                    <TableCell>{especieLabels[p.especie] || p.especie}</TableCell>
                     <TableCell>{p.raca}</TableCell>
-                    <TableCell>{p.sexo}</TableCell>
+                    <TableCell>{sexoLabels[p.sexo] || p.sexo}</TableCell>
                     <TableCell>{p.tutores?.nome ?? '—'}</TableCell>
                     <TableCell>{p.castrado ? 'Sim' : 'Não'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(p)}
+                          className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(p.id)}
+                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -202,6 +326,23 @@ export default function Pets() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este pet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os dados do animal serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

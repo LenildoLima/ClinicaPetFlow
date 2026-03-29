@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  userData: { nome: string; cargo: string; foto_url: string | null } | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -16,18 +17,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<AuthContextType['userData']>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('nome, cargo, foto_url')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      setUserData(data);
+    } catch (error) {
+      console.error('Erro ao buscar dados do usuário:', error);
+      setUserData(null);
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      } else {
+        setUserData(null);
+      }
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
       setLoading(false);
     });
 
@@ -49,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userData, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

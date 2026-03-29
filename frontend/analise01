@@ -1,0 +1,90 @@
+# Relatório de Análise do Projeto PetFlow
+
+Este relatório apresenta uma visão geral do estado atual do projeto PetFlow, detalhando as funcionalidades implementadas, componentes utilizados e integração com o Supabase.
+
+---
+
+## 1. Páginas Existentes
+
+| Página | Rota | Funcionalidade | Status |
+| :--- | :--- | :--- | :--- |
+| **Login** | `/login` | Autenticação (Login e Cadastro) via Supabase Auth. | ✅ Funcionando |
+| **Dashboard** | `/` | Exibe estatísticas gerais e as próximas consultas do dia. | ✅ Funcionando |
+| **Tutores** | `/tutores` | Listagem, busca por nome e cadastro de novos tutores. | ✅ Funcionando |
+| **Pets** | `/pets` | Listagem, busca e cadastro de pets vinculados a tutores. | ✅ Funcionando |
+| **Agenda** | `/agenda` | Gestão de consultas do dia, troca de status (Agendado, Concluído, etc). | ✅ Funcionando |
+| **Prontuário** | `/prontuario/:id` | Registro de informações clínicas (peso, temperatura, diagnóstico). | ✅ Funcionando |
+| **Página Inicial**| [Index.tsx](file:///c:/Projetos_programacao/PetFlow/src/pages/Index.tsx) | Placeholder padrão (Lovable/Vite). | ⚠️ Não utilizada |
+| **Não Encontrada**| `*` | Página de erro 404 personalizada. | ✅ Funcionando |
+
+---
+
+## 2. Componentes Criados
+
+### Componentes de Estrutura (`src/components/`)
+- **`AppLayout`**: Define a estrutura principal com Sidebar lateral e Header. Utilizado em todas as rotas protegidas.
+- **`ProtectedRoute`**: Garante que apenas usuários autenticados acessem o sistema.
+- **`NavLink`**: Componente customizado para links de navegação com suporte a estado "ativo".
+
+### Componentes de UI (shadcn/ui - `src/components/ui/`)
+O projeto utiliza uma biblioteca completa de componentes de UI, incluindo:
+- `Button`, `Input`, `Label`, `Card`, `Table`, `Dialog`, `Select`, `Checkbox`, `Badge`, `DropdownMenu`, `Textarea`, `Toast`.
+
+---
+
+## 3. Conexão com Supabase
+
+O projeto utiliza o Supabase para Autenticação e Banco de Dados.
+
+### Tabelas e Operações Identificadas:
+
+| Tabela | Campos Principais | Operações Atuais |
+| :--- | :--- | :--- |
+| **`tutores`** | nome, cpf, telefone, email, cidade, estado | Listar (`select`), Buscar (`ilike`), Inserir (`insert`). |
+| **`pets`** | nome, especie, raca, sexo, castrado, tutor_id | Listar (`select` com join), Buscar, Inserir. |
+| **`consultas`** | data_hora, tipo, motivo, status, pet_id, tutor_id | Listar, Inserir, Editar Status (`update`). |
+| **`prontuarios`**| consulta_id, peso, temperatura, diagnostico, tratamento | Listar, Inserir, Editar (`upsert` logic). |
+
+---
+
+## 4. O que NÃO está funcionando / Faltando
+
+| Categoria | Descrição |
+| :--- | :--- |
+| **Exclusão** | Não há funcionalidade de deletar (tutores, pets ou consultas) implementada na interface. |
+| **Edição** | Faltam telas/modais para editar dados de tutores e pets já cadastrados (apenas inserção está disponível). |
+| **Filtros** | A agenda está limitada a exibir apenas as consultas do dia atual. |
+| **Index** | O arquivo `src/pages/Index.tsx` ainda contém o conteúdo de placeholder inicial. |
+| **Navegação** | Algumas ações, como clicar no pet no dashboard para ir ao prontuário, poderiam ser mais diretas. |
+
+---
+
+## 5. Estrutura de Pastas
+
+```text
+PetFlow/
+├── public/                # Favicon e assets estáticos
+├── src/
+│   ├── components/        # Componentes reutilizáveis
+│   │   ├── ui/            # Componentes shadcn/ui
+│   │   ├── AppLayout.tsx  # Layout principal (Sidebar + Content)
+│   │   └── ProtectedRoute.tsx # Guarda de rotas
+│   ├── contexts/          # Contextos React (AuthContext)
+│   ├── hooks/             # Hooks customizados (useToast)
+│   ├── lib/               # Configurações de bibliotecas (Supabase client)
+│   ├── pages/             # Páginas/Rotas do sistema
+│   │   ├── Agenda.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── Login.tsx
+│   │   ├── Pets.tsx
+│   │   ├── Prontuario.tsx
+│   │   └── Tutores.tsx
+│   ├── App.tsx            # Definição de rotas e providers
+│   └── main.tsx           # Ponto de entrada da aplicação
+├── supabase/              # Configurações locais do Supabase (se houver)
+├── tailwind.config.ts     # Configuração de estilos
+└── vite.config.ts         # Configuração do build
+```
+
+---
+*Relatório gerado em 28 de Março de 2026.*

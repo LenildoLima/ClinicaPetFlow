@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, Calendar, Clock } from 'lucide-react';
+import { Users, Heart, Calendar, Clock, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -13,7 +14,17 @@ interface Consulta {
   tutores: { nome: string } | null;
 }
 
+const formatRole = (role: string) => {
+  const roles: Record<string, string> = {
+    admin: 'Administrador',
+    veterinario: 'Veterinário',
+    recepcionista: 'Recepcionista',
+  };
+  return roles[role] || role;
+};
+
 export default function Dashboard() {
+  const { userData } = useAuth();
   const [totalTutores, setTotalTutores] = useState(0);
   const [totalPets, setTotalPets] = useState(0);
   const [consultasHoje, setConsultasHoje] = useState(0);
@@ -27,11 +38,11 @@ export default function Dashboard() {
         supabase.from('tutores').select('id', { count: 'exact', head: true }),
         supabase.from('pets').select('id', { count: 'exact', head: true }),
         supabase.from('consultas').select('id', { count: 'exact', head: true })
-          .gte('data_hora', `${today}T00:00:00`)
-          .lte('data_hora', `${today}T23:59:59`),
+          .gte('data_hora', `${today}T00:00:00-03:00`)
+          .lte('data_hora', `${today}T23:59:59-03:00`),
         supabase.from('consultas').select('id, data_hora, motivo, pets(nome), tutores(nome)')
-          .gte('data_hora', `${today}T00:00:00`)
-          .lte('data_hora', `${today}T23:59:59`)
+          .gte('data_hora', `${today}T00:00:00-03:00`)
+          .lte('data_hora', `${today}T23:59:59-03:00`)
           .order('data_hora', { ascending: true })
           .limit(10),
       ]);
@@ -53,9 +64,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          {userData && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+              <Sparkles className="h-3 w-3" />
+              {formatRole(userData.cargo)}
+            </div>
+          )}
+        </div>
+        
+        {userData && (
+          <h2 className="text-xl font-semibold text-foreground">
+            Bem-vindo(a), <span className="text-primary">{userData.nome}</span>!
+          </h2>
+        )}
+        
+        <p className="text-muted-foreground text-sm">
           {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
         </p>
       </div>
@@ -99,7 +125,11 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <span className="text-sm font-medium text-primary">
-                    {format(new Date(c.data_hora), 'HH:mm')}
+                    {new Date(c.data_hora).toLocaleTimeString('pt-BR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      timeZone: 'America/Sao_Paulo'
+                    })}
                   </span>
                 </div>
               ))}
