@@ -92,24 +92,26 @@ export default function Caixa() {
 
   const fetchCaixa = async () => {
     setLoading(true);
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toLocaleDateString('en-CA', { 
+      timeZone: 'America/Sao_Paulo' 
+    });
     
     // Verificar se tem caixa aberto hoje
-    const { data: caixa } = await supabase
+    const { data: caixaHoje } = await supabase
       .from('caixa')
       .select('*, usuarios!aberto_por(nome)')
       .eq('data', hoje)
       .eq('status', 'aberto')
       .maybeSingle();
 
-    setCaixaAtivo(caixa);
+    setCaixaAtivo(caixaHoje);
 
-    if (caixa) {
+    if (caixaHoje) {
       // Buscar movimentações
       const { data: movs } = await supabase
         .from('caixa_movimentacoes')
         .select('*, usuarios!registrado_por(nome)')
-        .eq('caixa_id', caixa.id)
+        .eq('caixa_id', caixaHoje.id)
         .order('criado_em', { ascending: false });
       setMovimentacoes(movs || []);
 
@@ -145,7 +147,9 @@ export default function Caixa() {
 
   const handleAbrirCaixa = async () => {
     if (!saldoInicialInput) return;
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = new Date().toLocaleDateString('en-CA', { 
+      timeZone: 'America/Sao_Paulo' 
+    });
     const { error } = await supabase
       .from('caixa')
       .insert({
@@ -195,8 +199,16 @@ export default function Caixa() {
   const handleFecharCaixa = async () => {
     if (!caixaAtivo) return;
     
-    const entradas = movimentacoes.filter(m => m.tipo === 'entrada').reduce((sum, m) => sum + Number(m.valor), 0);
-    const saidas = movimentacoes.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + Number(m.valor), 0);
+    // Garantir que temos as movimentações mais recentes do banco
+    const { data: movsAtualizadas } = await supabase
+      .from('caixa_movimentacoes')
+      .select('tipo, valor')
+      .eq('caixa_id', caixaAtivo.id);
+
+    const checkMovs = movsAtualizadas || movimentacoes;
+    
+    const entradas = checkMovs.filter(m => m.tipo === 'entrada').reduce((sum, m) => sum + Number(m.valor), 0);
+    const saidas = checkMovs.filter(m => m.tipo === 'saida').reduce((sum, m) => sum + Number(m.valor), 0);
     const saldoFinal = Number(caixaAtivo.saldo_inicial) + entradas - saidas;
 
     const { error } = await supabase

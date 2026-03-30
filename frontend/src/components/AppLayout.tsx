@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet } from 'lucide-react';
+import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +25,7 @@ const allNavItems = [
   { title: 'Prontuários', url: '/prontuarios', icon: FileText, roles: ['admin', 'veterinario'] },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign, roles: ['admin', 'recepcionista'] },
   { title: 'Caixa', url: '/caixa', icon: Wallet, roles: ['admin', 'recepcionista'] },
-  { title: 'Configurações', url: '/configuracoes', icon: Settings, roles: ['admin'] },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings, roles: ['admin', 'veterinario', 'recepcionista'] },
 ];
 
 const formatRole = (role: string) => {

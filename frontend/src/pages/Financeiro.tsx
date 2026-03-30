@@ -264,11 +264,11 @@ export default function Financeiro() {
   };
 
   // Cálculos de Resumo
-  const hoje = startOfDay(new Date());
   const inicioMes = startOfMonth(new Date());
+  const hojeStr = format(new Date(), 'yyyy-MM-dd');
   
   const faturamentoDia = cobrancas
-    .filter(c => c.status === 'pago' && c.data_pagamento && startOfDay(new Date(c.data_pagamento)).getTime() === hoje.getTime())
+    .filter(c => c.status === 'pago' && c.data_pagamento === hojeStr)
     .reduce((sum, c) => sum + Number(c.valor_final || (c.valor_total - c.desconto)), 0);
 
   const pendenteTotal = cobrancas

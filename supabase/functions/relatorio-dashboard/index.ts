@@ -15,14 +15,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const hoje = new Date();
-    const inicioDia = new Date(hoje.setHours(0, 0, 0, 0)).toISOString();
-    const fimDia = new Date(hoje.setHours(23, 59, 59, 999)).toISOString();
+    // Deno roda em relógio UTC universal. Converter explicitamente.
+    const hojeUtc = new Date();
+    const hojeBrasil = new Date(hojeUtc.getTime() - (3 * 60 * 60 * 1000));
+    const inicio = new Date(
+      hojeBrasil.getUTCFullYear(),
+      hojeBrasil.getUTCMonth(),
+      hojeBrasil.getUTCDate(),
+      0, 0, 0
+    );
+    
+    const inicioDiaUTC = new Date(inicio.getTime() + (3 * 60 * 60 * 1000)).toISOString();
+    const fimDiaUTC = new Date(inicio.getTime() + (27 * 60 * 60 * 1000)).toISOString();
 
     // Últimos 7 dias para gráfico
-    const seteDiasAtras = new Date();
-    seteDiasAtras.setDate(seteDiasAtras.getDate() - 6);
-    seteDiasAtras.setHours(0, 0, 0, 0);
+    const seteDiasAtras = new Date(inicio.getTime());
+    seteDiasAtras.setUTCDate(seteDiasAtras.getUTCDate() - 6);
+    const seteDiasAtrasUTC = new Date(seteDiasAtras.getTime() + (3 * 60 * 60 * 1000)).toISOString();
 
     const [
       consultasHojeRes,
@@ -36,8 +45,8 @@ serve(async (req) => {
       supabase
         .from("consultas")
         .select("id, status")
-        .gte("data_hora", inicioDia)
-        .lte("data_hora", fimDia),
+        .gte("data_hora", inicioDiaUTC)
+        .lte("data_hora", fimDiaUTC),
 
       // Total de tutores ativos
       supabase
@@ -55,14 +64,14 @@ serve(async (req) => {
       supabase
         .from("financeiro")
         .select("valor_final, status")
-        .gte("criado_em", inicioDia)
-        .lte("criado_em", fimDia),
+        .gte("criado_em", inicioDiaUTC)
+        .lte("criado_em", fimDiaUTC),
 
       // Consultas dos últimos 7 dias para gráfico
       supabase
         .from("consultas")
         .select("data_hora, status")
-        .gte("data_hora", seteDiasAtras.toISOString())
+        .gte("data_hora", seteDiasAtrasUTC)
         .order("data_hora", { ascending: true }),
 
       // Próximas consultas do dia
@@ -74,8 +83,8 @@ serve(async (req) => {
           tutores ( nome, telefone ),
           usuarios ( nome )
         `)
-        .gte("data_hora", inicioDia)
-        .lte("data_hora", fimDia)
+        .gte("data_hora", inicioDiaUTC)
+        .lte("data_hora", fimDiaUTC)
         .in("status", ["agendado", "confirmado", "em_atendimento"])
         .order("data_hora", { ascending: true })
         .limit(10),

@@ -140,11 +140,17 @@ export default function ProntuarioPage() {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
+      // 1. Atualizar status da consulta para concluido
+      await supabase
+        .from('consultas')
+        .update({ status: 'concluido' })
+        .eq('id', consultaId);
+        
+      // 2. Mostrar mensagem de sucesso
       toast({ title: existingId ? 'Prontuário atualizado!' : 'Prontuário salvo com sucesso!' });
-      if (!existingId) {
-        const { data } = await supabase.from('prontuarios').select('id').eq('consulta_id', consultaId!).single();
-        if (data) setExistingId(data.id);
-      }
+      
+      // 3. Redirecionar para a listagem
+      setTimeout(() => navigate('/prontuarios'), 1000);
     }
     setLoading(false);
   };

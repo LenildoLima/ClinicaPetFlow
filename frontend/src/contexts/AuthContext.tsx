@@ -5,11 +5,23 @@ import { supabase } from '@/lib/supabase';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userData: { nome: string; cargo: string; foto_url: string | null } | null;
+  userData: { 
+    id?: string;
+    nome: string; 
+    email?: string;
+    telefone?: string | null;
+    whatsapp?: string | null;
+    cargo: string; 
+    crmv?: string | null;
+    ativo?: boolean;
+    foto_url: string | null; 
+    criado_em?: string;
+  } | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('nome, cargo, foto_url')
+        .select('*')
         .eq('id', userId)
         .single();
       
@@ -33,6 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
       setUserData(null);
+    }
+  };
+
+  const refreshUserData = async () => {
+    if (user) {
+      await fetchUserData(user.id);
     }
   };
 
@@ -75,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userData, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userData, loading, signIn, signUp, signOut, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   );

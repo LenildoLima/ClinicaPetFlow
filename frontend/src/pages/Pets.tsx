@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Heart, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Heart, Pencil, Trash2, History } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +63,7 @@ const sexoLabels: Record<string, string> = {
 };
 
 export default function Pets() {
+  const navigate = useNavigate();
   const [pets, setPets] = useState<Pet[]>([]);
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [search, setSearch] = useState('');
@@ -292,7 +294,7 @@ export default function Pets() {
               </TableHeader>
               <TableBody>
                 {pets.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-gray-50/50" onClick={() => navigate(`/pets/${p.id}`)}>
                     <TableCell className="font-medium">{p.nome}</TableCell>
                     <TableCell>{especieLabels[p.especie] || p.especie}</TableCell>
                     <TableCell>{p.raca}</TableCell>
@@ -300,7 +302,16 @@ export default function Pets() {
                     <TableCell>{p.tutores?.nome ?? '—'}</TableCell>
                     <TableCell>{p.castrado ? 'Sim' : 'Não'}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/pets/${p.id}`)}
+                          className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                          title="Ver Histórico"
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

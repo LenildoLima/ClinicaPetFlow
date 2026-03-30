@@ -83,12 +83,17 @@ export default function MinhaAgenda() {
 
     const { data } = await supabase
       .from('consultas')
-      .select('*, pets(nome), tutores(nome)')
+      .select('*, pets(nome), tutores(nome), prontuarios(id)')
       .eq('veterinario_id', user.id)
       .gte('data_hora', start.toISOString())
       .lte('data_hora', end.toISOString())
       .order('data_hora', { ascending: true });
-    setConsultas((data as unknown as Consulta[]) ?? []);
+      
+    const formatadas = ((data as any[]) || []).map(c => ({
+      ...c,
+      status: (c.prontuarios && c.prontuarios.length > 0) ? 'concluido' : c.status
+    }));
+    setConsultas(formatadas);
   };
 
   useEffect(() => {

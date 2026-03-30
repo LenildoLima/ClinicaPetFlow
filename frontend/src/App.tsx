@@ -15,8 +15,10 @@ import MinhaAgenda from "./pages/MinhaAgenda";
 import Prontuario from "./pages/Prontuario";
 import Prontuarios from "./pages/Prontuarios";
 import ProntuarioDetalhe from "./pages/ProntuarioDetalhe";
+import PetHistorico from "./pages/PetHistorico";
 import Financeiro from "./pages/Financeiro";
 import Caixa from "./pages/Caixa";
+import Configuracoes from "./pages/Configuracoes";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -63,6 +65,11 @@ const App = () => (
                 <AppLayout><Pets /></AppLayout>
               </ProtectedRoute>
             } />
+            <Route path="/pets/:id" element={
+              <ProtectedRoute>
+                <AppLayout><PetHistorico /></AppLayout>
+              </ProtectedRoute>
+            } />
 
             {/* Admin and Veterinario */}
             <Route path="/prontuario/:consultaId" element={
@@ -93,9 +100,9 @@ const App = () => (
               </RoleRoute>
             } />
             <Route path="/configuracoes" element={
-              <RoleRoute allowedRoles={['admin']}>
-                <AppLayout><PlaceholderPage title="Configurações" /></AppLayout>
-              </RoleRoute>
+              <ProtectedRoute>
+                <AppLayout><Configuracoes /></AppLayout>
+              </ProtectedRoute>
             } />
 
             <Route path="*" element={<NotFound />} />
