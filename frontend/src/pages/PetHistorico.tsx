@@ -32,15 +32,16 @@ interface ConsultaHist {
   tipo: string;
   status: string;
   motivo: string;
-  veterinarios: { nome: string } | null;
-  prontuarios: { id: string }[];
+  usuarios: { nome: string } | null;
 }
 
 interface ProntuarioHist {
   id: string;
+  consulta_id?: string;
   data_atendimento: string;
   diagnostico: string;
-  veterinarios: { nome: string } | null;
+  tratamento?: string;
+  usuarios: { nome: string } | null;
 }
 
 interface VacinaHist {
@@ -74,65 +75,54 @@ export default function PetHistorico() {
   const [exames, setExames] = useState<ExameHist[]>([]);
 
   useEffect(() => {
-    const fetchHistorico = async () => {
+    const fetchData = async () => {
       if (!id) return;
       setLoading(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buscar-historico-pet`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ pet_id: id })
-          }
-        );
-
-        if (!response.ok) throw new Error('Falha ao buscar o histórico nativo (Edge Function)');
-
-        const responseData = await response.json();
-        
-        // Verifica envelopamentos da Edge Function
-        const historico = responseData.pet ? responseData : (responseData.data || {});
-
-        setPet(historico.pet || null);
-        setConsultas(historico.consultas || []);
-        setProntuarios(historico.prontuarios || []);
-        setVacinas(historico.vacinas || []);
-        setExames(historico.exames || []);
-      } catch (err) {
-        console.error('Erro na carga da Edge Function', err);
-        // Fallback robusto opcional caso local não tenha Edge Function
-        await fetchFallback(id);
-      } finally {
-        setLoading(false);
-      }
+      await fetchFallback(id);
+      setLoading(false);
     };
 
-    fetchHistorico();
+    fetchData();
   }, [id]);
 
-  const fetchFallback = async (petId: string) => {
+  const fetchFallback = async (id: string) => {
     try {
-      const [petRes, consultasRes, prontuariosRes, vacinasRes, examesRes] = await Promise.all([
-        supabase.from('pets').select('*, tutores(nome, telefone)').eq('id', petId).single(),
-        supabase.from('consultas').select('id, data_hora, tipo, status, motivo, veterinarios:usuarios(nome), prontuarios(id)').eq('pet_id', petId).order('data_hora', { ascending: false }),
-        supabase.from('prontuarios').select('id, data_atendimento, diagnostico, veterinarios:usuarios(nome)').eq('pet_id', petId).order('data_atendimento', { ascending: false }),
-        supabase.from('vacinas').select('*').eq('pet_id', petId).order('data_aplicacao', { ascending: false }),
-        supabase.from('exames').select('*').eq('pet_id', petId).order('data_solicitacao', { ascending: false }),
+      const { data: consultas, error: errConsultas } = await supabase
+        .from('consultas')
+        .select(`id, data_hora, tipo, status, motivo, usuarios!veterinario_id(nome)`)
+        .eq('pet_id', id)
+        .order('data_hora', { ascending: false });
+
+      const { data: prontuarios, error: errProntuarios } = await supabase
+        .from('prontuarios')
+        .select(`id, consulta_id, data_atendimento, diagnostico, tratamento, usuarios!veterinario_id(nome)`)
+        .eq('pet_id', id)
+        .order('data_atendimento', { ascending: false });
+
+      const [petRes, vacinasRes, examesRes] = await Promise.all([
+        supabase.from('pets').select('*, tutores(nome, telefone)').eq('id', id).single(),
+        supabase.from('vacinas').select('*').eq('pet_id', id).order('data_aplicacao', { ascending: false }),
+        supabase.from('exames').select('*').eq('pet_id', id).order('data_solicitacao', { ascending: false }),
       ]);
+      
       setPet(petRes.data as any);
-      setConsultas(consultasRes.data as any || []);
-      setProntuarios(prontuariosRes.data as any || []);
+      
+      const consultasFormatadas = (consultas as any)?.map((c: any) => ({
+        ...c,
+        usuarios: Array.isArray(c.usuarios) ? c.usuarios[0] : c.usuarios
+      })) || [];
+      setConsultas(consultasFormatadas);
+
+      const prontuariosFormatados = (prontuarios as any)?.map((p: any) => ({
+        ...p,
+        usuarios: Array.isArray(p.usuarios) ? p.usuarios[0] : p.usuarios
+      })) || [];
+      setProntuarios(prontuariosFormatados);
+
       setVacinas(vacinasRes.data as any || []);
       setExames(examesRes.data as any || []);
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao buscar histórico:', e);
     }
   };
 
@@ -173,7 +163,7 @@ export default function PetHistorico() {
   if (!pet) return <div className="text-center p-8 text-muted-foreground">Paciente não encontrado.</div>;
 
   // Cálculos dinâmicos
-  const ultimaConsulta = consultas.find(c => new Date(c.data_hora) <= new Date())?.data_hora;
+  const ultimaConsulta = consultas[0]?.data_hora;
   const proximaVacinaObj = vacinas
     .filter(v => v.data_reforco && new Date(v.data_reforco) > new Date())
     .sort((a, b) => new Date(a.data_reforco).getTime() - new Date(b.data_reforco).getTime())[0];
@@ -288,21 +278,37 @@ export default function PetHistorico() {
                   {consultas.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma consulta registrada.</TableCell></TableRow>
                   ) : consultas.map(c => {
-                    const statusFinal = c.prontuarios?.length > 0 ? 'concluido' : c.status;
+                    const prontuarioRelacionado = prontuarios.find(p => p.consulta_id === c.id);
+                    const statusFinal = prontuarioRelacionado ? 'concluido' : c.status;
+                    
+                    const getTipoBadge = (tipo: string) => {
+                      const t = tipo.toLowerCase();
+                      if (t.includes('consulta')) return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">Consulta</Badge>;
+                      if (t.includes('retorno')) return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Retorno</Badge>;
+                      if (t.includes('exame')) return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none">Exame</Badge>;
+                      if (t.includes('cirurgia')) return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none">Cirurgia</Badge>;
+                      if (t.includes('vacina')) return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 border-none">Vacinação</Badge>;
+                      return <Badge variant="outline" className="capitalize">{tipo}</Badge>;
+                    };
+
+                    const getStatusBadge = (status: string) => {
+                      const s = status.toLowerCase();
+                      if (s === 'concluido' || s === 'concluída') return <Badge className="bg-green-500 hover:bg-green-600">Concluída</Badge>;
+                      if (s === 'agendado' || s === 'agendada') return <Badge className="bg-blue-500 hover:bg-blue-600">Agendada</Badge>;
+                      if (s === 'cancelado' || s === 'cancelada') return <Badge className="bg-red-500 hover:bg-red-600">Cancelada</Badge>;
+                      return <Badge variant="outline" className="capitalize">{status}</Badge>;
+                    };
+
                     return (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{formatDataHora(c.data_hora)}</TableCell>
-                        <TableCell className="capitalize">{c.tipo}</TableCell>
-                        <TableCell>Dr(a). {c.veterinarios?.nome || '—'}</TableCell>
+                        <TableCell>{getTipoBadge(c.tipo)}</TableCell>
+                        <TableCell>Dr(a). {c.usuarios?.nome || '—'}</TableCell>
                         <TableCell className="text-muted-foreground truncate max-w-[200px]" title={c.motivo}>{c.motivo}</TableCell>
-                        <TableCell>
-                          {statusFinal === 'concluido' ? <Badge className="bg-green-500">Concluída</Badge> 
-                           : statusFinal === 'agendado' ? <Badge className="bg-blue-500">Agendada</Badge>
-                           : <Badge variant="outline">{statusFinal}</Badge>}
-                        </TableCell>
+                        <TableCell>{getStatusBadge(statusFinal)}</TableCell>
                         <TableCell className="text-right">
-                          {c.prontuarios?.length > 0 && (
-                            <Button variant="ghost" size="sm" onClick={() => navigate(`/prontuarios/${c.prontuarios[0].id}`)}>
+                          {prontuarioRelacionado && (
+                            <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/5" onClick={() => navigate(`/prontuarios/${prontuarioRelacionado.id}`)}>
                               Ver Prontuário
                             </Button>
                           )}
@@ -333,7 +339,7 @@ export default function PetHistorico() {
                   ) : prontuarios.map(p => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium whitespace-nowrap">{formatDataHora(p.data_atendimento)}</TableCell>
-                      <TableCell className="whitespace-nowrap">Dr(a). {p.veterinarios?.nome || '—'}</TableCell>
+                      <TableCell className="whitespace-nowrap">Dr(a). {p.usuarios?.nome || '—'}</TableCell>
                       <TableCell className="text-muted-foreground line-clamp-2 max-w-[400px]">"{p.diagnostico || 'Sem diagnóstico formalizado...'}"</TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" className="gap-2 shrink-0 bg-primary/5 text-primary border-primary/20 hover:bg-primary hover:text-white" onClick={() => navigate(`/prontuarios/${p.id}`)}>
