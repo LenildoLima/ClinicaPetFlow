@@ -61,12 +61,17 @@ export default function ProntuarioDetalhe() {
   const [printMode, setPrintMode] = useState<'receita' | 'prontuario'>('receita');
   const printRef = useRef<HTMLDivElement>(null);
 
-  const fetchItems = async (prontuarioId: string) => {
+  const fetchItems = async (prontuarioId: string, petId: string | undefined) => {
+    if (!prontuarioId) return;
+
     const [prescRes, examRes, vacRes] = await Promise.all([
       supabase.from('prescricoes').select('*').eq('prontuario_id', prontuarioId),
       supabase.from('exames').select('*').eq('prontuario_id', prontuarioId),
-      supabase.from('vacinas').select('*').eq('prontuario_id', prontuarioId)
+      petId 
+        ? supabase.from('vacinas').select('*').eq('pet_id', petId).order('data_aplicacao', { ascending: false })
+        : Promise.resolve({ data: [] })
     ]);
+    
     setPrescricoes(prescRes.data || []);
     setExames(examRes.data || []);
     setVacinas(vacRes.data || []);
@@ -84,10 +89,10 @@ export default function ProntuarioDetalhe() {
       .single();
 
     if (data) {
-      const p = data as unknown as Prontuario;
+      const p = data as any;
       setProntuario(p);
       setEditForm(p);
-      fetchItems(p.id);
+      fetchItems(p.id, p.pets?.id);
     }
     setLoading(false);
   };
@@ -100,6 +105,20 @@ export default function ProntuarioDetalhe() {
     if (anos > 0) return `${anos} anos`;
     const meses = differenceInMonths(new Date(), d);
     return `${meses} meses`;
+  };
+  
+  const getVaccineStatus = (dataReforco: string | null) => {
+    if (!dataReforco) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const reforco = new Date(dataReforco);
+    reforco.setHours(0, 0, 0, 0);
+    const diffTime = reforco.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return { label: 'Reforço Atrasado', variant: 'destructive' as const };
+    if (diffDays <= 30) return { label: 'Reforço Próximo', variant: 'secondary' as const };
+    return null;
   };
 
   const handlePrint = (mode: 'receita' | 'prontuario') => {
@@ -366,19 +385,13 @@ export default function ProntuarioDetalhe() {
                 <Badge variant="default">{new Date(prontuario.retorno_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</Badge>
               </div>
             )}
-            <TabsContent value="prescricoes" className="pt-4">
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="prescricoes" className="pt-4">
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Histórico de Prescrições</CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Nova Prescrição</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader><DialogTitle>Adicionar Medicamento</DialogTitle></DialogHeader>
-                  <PrescricaoForm prontuario={prontuario} onSave={() => fetchItems(prontuario.id)} />
-                </DialogContent>
-              </Dialog>
             </CardHeader>
             <CardContent>
               {prescricoes.length === 0 ? (
@@ -388,17 +401,22 @@ export default function ProntuarioDetalhe() {
                   {prescricoes.map(p => (
                     <div key={p.id} className="border rounded-lg p-4 bg-muted/5">
                       <div className="flex justify-between items-start mb-2">
-                         <span className="text-xs font-bold text-primary uppercase tracking-wider">Prescrição #{p.id.slice(0, 5)}</span>
-                         <span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</span>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Prescrição #{p.id.slice(0, 5)}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</span>
                       </div>
                       <div className="grid grid-cols-1 gap-2">
                         {p.medicamentos?.map((m: any, idx: number) => (
-                          <div key={idx} className="bg-white dark:bg-muted/20 p-3 rounded border border-l-4 border-l-primary">
+                          <div key={idx} className="bg-white dark:bg-muted/20 p-3 rounded border border-l-4 border-l-primary shadow-sm">
                             <p className="font-bold text-foreground">{m.nome}</p>
                             <p className="text-sm text-muted-foreground">{m.dose} • {m.frequencia} • {m.duracao} • {m.via}</p>
                           </div>
                         ))}
                       </div>
+                      {p.observacoes && (
+                        <div className="mt-2 p-2 bg-amber-50/50 border border-amber-100 rounded text-xs italic text-amber-800">
+                          <strong>Obs:</strong> {p.observacoes}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -408,18 +426,9 @@ export default function ProntuarioDetalhe() {
         </TabsContent>
         
         <TabsContent value="exames" className="pt-4">
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Exames Solicitados</CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Adicionar Exame</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Registrar Exame</DialogTitle></DialogHeader>
-                  <ExameForm prontuario={prontuario} onSave={() => fetchItems(prontuario.id)} />
-                </DialogContent>
-              </Dialog>
             </CardHeader>
             <CardContent>
               {exames.length === 0 ? (
@@ -430,7 +439,17 @@ export default function ProntuarioDetalhe() {
                     <div key={e.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                       <div>
                         <p className="font-bold text-sm">{e.tipo}</p>
-                        <p className="text-xs text-muted-foreground">{e.laboratorio || 'Laboratório próprio'} • {e.data_solicitacao && format(new Date(e.data_solicitacao), 'dd/MM/yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {e.laboratorio || 'Laboratório próprio'} • Solicitação: {e.data_solicitacao && format(new Date(e.data_solicitacao), 'dd/MM/yyyy')}
+                          {e.data_resultado && ` • Resultado: ${format(new Date(e.data_resultado), 'dd/MM/yyyy')}`}
+                        </p>
+                        {e.descricao && <p className="text-xs mt-1 italic text-muted-foreground">Motivo: {e.descricao}</p>}
+                        {e.resultado && (
+                          <div className="mt-2 text-sm text-foreground bg-white/50 p-2 rounded border border-dashed">
+                            <p className="font-semibold text-xs uppercase text-muted-foreground mb-1">Resultado:</p>
+                            <p className="whitespace-pre-wrap">{e.resultado}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {e.arquivo_url && <Button variant="ghost" size="icon" onClick={() => window.open(e.arquivo_url)}><ExternalLink className="h-4 w-4" /></Button>}
@@ -445,22 +464,13 @@ export default function ProntuarioDetalhe() {
         </TabsContent>
 
         <TabsContent value="vacinas" className="pt-4">
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Vacinas Aplicadas</CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Registrar Vacina</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Nova Vacina</DialogTitle></DialogHeader>
-                  <VacinaForm prontuario={prontuario} onSave={() => fetchItems(prontuario.id)} />
-                </DialogContent>
-              </Dialog>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Histórico de Vacinas (Todas as consultas)</CardTitle>
             </CardHeader>
             <CardContent>
                {vacinas.length === 0 ? (
-                <p className="text-muted-foreground text-sm text-center py-8 italic">Nenhuma vacina registrada.</p>
+                <p className="text-muted-foreground text-sm text-center py-8 italic">Nenhuma vacina registrada para este pet.</p>
               ) : (
                 <div className="grid gap-3">
                   {vacinas.map(v => (
@@ -468,21 +478,29 @@ export default function ProntuarioDetalhe() {
                       <div>
                         <p className="font-bold text-sm text-green-700">{v.nome}</p>
                         <p className="text-[11px] text-muted-foreground">{v.fabricante} • Lote: {v.lote} • Aplicada em: {format(new Date(v.data_aplicacao), 'dd/MM/yyyy')}</p>
+                        {v.observacoes && <p className="text-[10px] italic text-muted-foreground mt-1">Obs: {v.observacoes}</p>}
                       </div>
-                      {v.data_reforco && (
-                        <div className="text-right">
-                          <p className="text-[10px] uppercase font-bold text-amber-600">Reforço em</p>
-                          <p className="text-xs font-bold">{format(new Date(v.data_reforco), 'dd/MM/yyyy')}</p>
-                        </div>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {v.data_reforco && (
+                          <>
+                            <p className="text-[10px] uppercase font-bold text-amber-600">Próximo Reforço</p>
+                            <p className="text-xs font-bold">{format(new Date(v.data_reforco), 'dd/MM/yyyy')}</p>
+                            {getVaccineStatus(v.data_reforco) && (
+                              <Badge 
+                                variant={getVaccineStatus(v.data_reforco)!.variant}
+                                className="text-[9px] py-0 h-4"
+                              >
+                                {getVaccineStatus(v.data_reforco)!.label}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
-          </Card>
-        </TabsContent>
-
           </Card>
         </TabsContent>
       </Tabs>
