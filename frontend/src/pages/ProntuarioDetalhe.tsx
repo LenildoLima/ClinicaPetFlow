@@ -128,6 +128,113 @@ export default function ProntuarioDetalhe() {
     }, 100);
   };
 
+  const handleImprimirReceita = () => {
+    // Usar os dados já carregados na página
+    const janela = window.open('', '_blank');
+    
+    const medicamentos = prescricoes?.flatMap(p => p.medicamentos || []) || [];
+    
+    janela?.document.write(`
+      <html>
+      <head>
+        <title>Receita - ${prontuario?.pets?.nome}</title>
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 12px; padding: 2cm; line-height: 1.5; color: #333; }
+          h1 { text-align: center; font-size: 18px; margin-bottom: 4px; color: #16a34a; }
+          h2 { font-size: 13px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 20px; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; }
+          .info { margin: 5px 0; font-size: 13px; }
+          .item { margin: 10px 0; padding: 10px 15px; border-left: 4px solid #16a34a; background: #f0fdf4; border-radius: 0 4px 4px 0; }
+          .assinatura { margin-top: 80px; border-top: 1px solid #333; padding-top: 10px; text-align: center; }
+          @media print { body { padding: 0; } }
+          .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <h1>🐾 PetFlow - Clínica Veterinária</h1>
+        <p style="text-align:center;color:#666;margin-bottom:30px;">${new Date(prontuario?.data_atendimento).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'})}</p>
+  
+        <h2>PACIENTE</h2>
+        <div class="info"><b>Pet:</b> ${prontuario?.pets?.nome} | ${prontuario?.pets?.especie} - ${prontuario?.pets?.raca || 'SRD'}</div>
+        <div class="info"><b>Tutor:</b> ${prontuario?.pets?.tutores?.nome} | <b>Tel:</b> ${prontuario?.pets?.tutores?.telefone || '-'}</div>
+  
+        <h2>VETERINÁRIO RESPONSÁVEL</h2>
+        <div class="info"><b>Dr(a).</b> ${prontuario?.usuarios?.nome}</div>
+        ${prontuario?.usuarios?.crmv ? `<div class="info"><b>CRMV:</b> ${prontuario.usuarios.crmv}</div>` : ''}
+  
+        ${medicamentos.length > 0 ? `
+          <h2>PRESCRIÇÃO</h2>
+          ${medicamentos.map((med, i) => `
+            <div class="item">
+              <b>${i + 1}. ${med.nome}</b><br/>
+              ${med.dose} • ${med.frequencia} • ${med.duracao} • Via ${med.via}
+              ${med.observacoes ? `<br/><i>${med.observacoes}</i>` : ''}
+            </div>
+          `).join('')}
+        ` : ''}
+  
+        ${vacinas?.length > 0 ? `
+          <h2>VACINAS APLICADAS</h2>
+          ${vacinas.map(v => `
+            <div class="item">
+              <b>${v.nome}</b>${v.fabricante ? ` - ${v.fabricante}` : ''}${v.lote ? ` | Lote: ${v.lote}` : ''}<br/>
+              <b>Aplicada em:</b> ${new Date(v.data_aplicacao).toLocaleDateString('pt-BR')}
+              ${v.data_reforco ? `<br/><b>Próximo reforço:</b> ${new Date(v.data_reforco).toLocaleDateString('pt-BR')}` : ''}
+              ${v.observacoes ? `<br/><i>${v.observacoes}</i>` : ''}
+            </div>
+          `).join('')}
+        ` : ''}
+  
+        ${exames?.length > 0 ? `
+          <h2>EXAMES SOLICITADOS</h2>
+          ${exames.map(e => `
+            <div class="item">
+              <b>${e.tipo}</b>${e.laboratorio ? ` - ${e.laboratorio}` : ''}<br/>
+              <b>Solicitado em:</b> ${new Date(e.data_solicitacao).toLocaleDateString('pt-BR')}
+              ${e.resultado ? `<br/><b>Resultado:</b> ${e.resultado}` : '<br/><i>Aguardando resultado</i>'}
+            </div>
+          `).join('')}
+        ` : ''}
+  
+        ${prontuario?.orientacoes ? `
+          <h2>ORIENTAÇÕES AO TUTOR</h2>
+          <div style="background: #fffbeb; padding: 10px; border: 1px solid #fef3c7; border-radius: 4px; font-style: italic;">
+            <p>${prontuario.orientacoes}</p>
+          </div>
+        ` : ''}
+  
+        ${prontuario?.retorno_em ? `
+          <h2>DATA DE RETORNO SUGERIDA</h2>
+          <p><b>Data:</b> ${new Date(prontuario.retorno_em).toLocaleDateString('pt-BR')}</p>
+        ` : ''}
+  
+        <div class="assinatura">
+          <br/><br/>
+          ___________________________<br/>
+          <b>Dr(a). ${prontuario?.usuarios?.nome}</b><br/>
+          ${prontuario?.usuarios?.crmv ? `CRMV: ${prontuario.usuarios.crmv}` : ''}
+        </div>
+
+        <div class="footer">
+          Gerado automaticamente pelo sistema PetFlow em ${new Date().toLocaleString('pt-BR')}
+        </div>
+      </body>
+      </html>
+    `)
+    
+    janela?.document.close();
+    
+    // Aguardar carregar e imprimir automaticamente
+    janela?.addEventListener('load', () => {
+      janela.print();
+      janela.close();
+    });
+
+    // Fallback se o evento load não disparar
+    setTimeout(() => {
+      janela?.print();
+    }, 800);
+  }
+
   const handleUpdateProntuario = async () => {
     setIsSubmitting(true);
     const { error } = await supabase
@@ -175,7 +282,7 @@ export default function ProntuarioDetalhe() {
             <Printer className="mr-2 h-4 w-4" />
             Imprimir Prontuário
           </Button>
-          <Button variant="outline" onClick={() => handlePrint('receita')}>
+          <Button variant="outline" onClick={handleImprimirReceita} className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
             <Printer className="mr-2 h-4 w-4" />
             Imprimir Receita
           </Button>
@@ -547,82 +654,8 @@ export default function ProntuarioDetalhe() {
       `}</style>
 
       {/* Container de Impressão Oculto na tela, visível apenas na impressão */}
-      <div className={`hidden bg-white p-8 ${printMode === 'receita' ? 'print-container' : 'print-container-full'}`} ref={printRef}>
-        {printMode === 'receita' ? (
-          <div className="space-y-8">
-            <div className="flex justify-between border-b-2 border-primary pb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-primary">PetFlow</h1>
-                <p className="text-muted-foreground">Clínica Veterinária</p>
-              </div>
-              <div className="text-right text-sm">
-                <p className="font-bold">Receituário Médico</p>
-                <p>{format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 text-sm bg-muted/20 p-4 rounded">
-              <div>
-                <p className="font-bold uppercase text-[10px]">Paciente</p>
-                <p className="text-lg font-bold">{prontuario.pets?.nome}</p>
-                <p>{prontuario.pets?.especie} - {prontuario.pets?.raca}</p>
-              </div>
-              <div>
-                <p className="font-bold uppercase text-[10px]">Tutor</p>
-                <p className="text-lg font-bold">{prontuario.pets?.tutores?.nome}</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold border-l-4 border-primary pl-3 uppercase tracking-tight">Prescrição e Recomendações</h3>
-              
-              <div className="min-h-[500px] border-2 border-slate-100 p-8 rounded-xl font-serif text-lg leading-relaxed relative bg-slate-50/20">
-                {/* Listagem de Prescrições Reais */}
-                {prescricoes.length > 0 ? (
-                  <div className="space-y-8">
-                    {prescricoes.map((p, idx) => (
-                      <div key={idx} className="space-y-4">
-                        {p.medicamentos?.map((m: any, mIdx: number) => (
-                          <div key={mIdx} className="border-b border-slate-200 pb-2">
-                            <p className="font-bold text-xl uppercase">{mIdx + 1}. {m.nome}</p>
-                            <p className="text-sm italic text-slate-600">
-                              {m.dose} • {m.frequencia} • {m.duracao} • Via {m.via}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4 text-slate-700">
-                    <p className="font-bold underline">Uso Veterinário:</p>
-                    <p className="whitespace-pre-wrap">{prontuario.tratamento || '—'}</p>
-                  </div>
-                )}
-
-                <div className="mt-12 pt-8 border-t border-dashed space-y-4">
-                  <p className="font-bold text-sm uppercase">Orientações ao Tutor:</p>
-                  <p className="text-base text-slate-700 italic">{prontuario.orientacoes || '—'}</p>
-                  {prontuario.retorno_em && (
-                    <p className="mt-4 text-sm font-bold text-primary">
-                      Sugestão de Retorno: {new Date(prontuario.retorno_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                    </p>
-                  )}
-                </div>
-                
-                <div className="absolute bottom-4 right-8 opacity-10 rotate-[-15deg] pointer-events-none select-none">
-                  <h1 className="text-6xl font-black">PETFLOW</h1>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-auto pt-16 flex flex-col items-center gap-1">
-              <div className="w-80 border-t-2 border-slate-800"></div>
-              <p className="font-bold text-lg uppercase tracking-wider">Dr(a). {prontuario.usuarios?.nome}</p>
-              <p className="text-sm font-medium text-slate-600">CRMV-{prontuario.usuarios?.crmv || '—'}</p>
-            </div>
-          </div>
-        ) : (
+      <div className={`hidden bg-white p-8 ${printMode === 'prontuario' ? 'print-container-full' : ''}`} ref={printRef}>
+        {printMode === 'prontuario' && (
           <div className="space-y-6 text-slate-900">
             <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2">
               <h1 className="text-2xl font-bold uppercase">Clínica Veterinária PetFlow</h1>

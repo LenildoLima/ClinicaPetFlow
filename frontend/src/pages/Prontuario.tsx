@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Save, Syringe, Microscope, Plus, Trash2, Pill, Check } from 'lucide-react';
+import { ArrowLeft, FileText, Save, Syringe, Microscope, Plus, Trash2, Pill, Check, Printer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,7 +27,7 @@ interface Consulta {
   observacoes: string | null;
   status: string;
   pets: { nome: string; especie: string; raca: string } | null;
-  tutores: { id: string, nome: string } | null; // Adicionado id
+  tutores: { id: string, nome: string, telefone?: string } | null; // Adicionado id e telefone
 }
 
 interface Prontuario {
@@ -161,8 +161,6 @@ export default function ProntuarioPage() {
   const [addingPrescricao, setAddingPrescricao] = useState(false);
 
   // Estados para Cobrança
-  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [billingItems, setBillingItems] = useState<any[]>([]);
   const [allServicos, setAllServicos] = useState<any[]>([]);
 
   // Novos estados para integração com estoque e catálogo
@@ -179,6 +177,8 @@ export default function ProntuarioPage() {
   const [buscaMed, setBuscaMed] = useState('');
   const [medicamentoSelecionadoId, setMedicamentoSelecionadoId] = useState<string>('');
   const [precoMedicamento, setPrecoMedicamento] = useState<number>(0);
+  const [vacinasReceita, setVacinasReceita] = useState<any[]>([]);
+  const [examesReceita, setExamesReceita] = useState<any[]>([]);
 
   useEffect(() => {
     if (!consultaId) return;
@@ -206,7 +206,7 @@ export default function ProntuarioPage() {
           .select(`
             id, pet_id, tutor_id, data_hora, tipo, status, motivo, observacoes,
             pets ( nome, especie, raca ),
-            tutores ( id, nome )
+            tutores ( id, nome, telefone )
           `)
           .eq('id', consultaId)
           .single(),
@@ -244,8 +244,23 @@ export default function ProntuarioPage() {
           diagnostico: p.diagnostico ?? '',
           tratamento: p.tratamento ?? '',
           orientacoes: p.orientacoes ?? '',
-          retorno_em: p.retorno_em ?? '',
         });
+
+        // Buscar vacinas aplicadas nesta consulta (mesma data do atendimento)
+        const dataAtendimento = p.data_atendimento ? p.data_atendimento.split('T')[0] : new Date().toISOString().split('T')[0];
+        const { data: vReceita } = await supabase
+          .from('vacinas')
+          .select('*')
+          .eq('pet_id', p.pet_id)
+          .eq('data_atendimento', dataAtendimento);
+        if (vReceita) setVacinasReceita(vReceita);
+
+        // Buscar exames deste prontuário
+        const { data: eReceita } = await supabase
+          .from('exames')
+          .select('*')
+          .eq('prontuario_id', p.id);
+        if (eReceita) setExamesReceita(eReceita);
       }
 
       if (estoqueRes.data) {
@@ -349,18 +364,13 @@ export default function ProntuarioPage() {
     setLoading(false);
   };
 
-  const handleFinalize = async () => {
+  const handleFinalizarAtendimento = async () => {
     if (!consultaId || !consulta) return;
     setIsFinalizing(true);
     
     try {
-      const buscarPreco = (nome: string, categoria: string) => {
-        const servico = allServicos?.find(s => 
-          s.nome.toLowerCase() === nome.toLowerCase() || 
-          s.nome.toLowerCase().includes(nome.toLowerCase())
-        );
-        return servico?.preco || 0;
-      };
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
 
       const buscarPrecoConsulta = (tipo: string) => {
         const mapeamento: Record<string, string> = {
@@ -381,83 +391,66 @@ export default function ProntuarioPage() {
         };
       };
 
-      // 2. Montar itens da cobrança
       const itens: any[] = [];
 
-      // Consulta
+      // 1. Consulta (obrigatório)
       const infoConsulta = buscarPrecoConsulta(consulta.tipo);
       itens.push({
         descricao: infoConsulta.nome,
         quantidade: 1,
         valor_unitario: infoConsulta.preco,
-        pode_desmarcar: false,
-        selecionado: true
+        obrigatorio: true,
+        tipo: 'consulta'
       });
 
-      // Exames
-      exames.forEach(ex => {
-        const servico = allServicos.find(s => s.categoria === 'exame' && s.nome.toLowerCase() === ex.tipo.toLowerCase());
-        itens.push({
-          descricao: `Exame - ${ex.tipo}`,
-          quantidade: 1,
-          valor_unitario: servico?.preco || 0,
-          pode_desmarcar: true,
-          selecionado: true
-        });
-      });
+      // 2. Vacinas aplicadas (obrigatório)
+      // Usar as vacinas que já estão no estado local (carregadas no useEffect ou adicionadas agora)
+      // Filtrar apenas as do dia de hoje para o atendimento atual
+      const hojeStr = new Date().toISOString().split('T')[0];
+      const vacinasAtendimento = vacinas.filter(v => v.data_aplicacao === hojeStr);
 
-      // Vacinas
-      vacinas.forEach(v => {
+      vacinasAtendimento?.forEach(v => {
         const prod = vacinasEstoque.find(ve => ve.nome.toLowerCase() === v.nome.toLowerCase());
         itens.push({
           descricao: `Vacina - ${v.nome}`,
           quantidade: 1,
-          valor_unitario: prod?.preco_venda || buscarPreco(v.nome, 'vacina'),
-          pode_desmarcar: false,
-          selecionado: true,
+          valor_unitario: prod?.preco_venda || 0,
+          obrigatorio: true,
           tipo: 'vacina'
         });
       });
 
-      // Medicamentos (Prescrições)
-      prescricoes.forEach(p => {
-        const meds = Array.isArray(p.medicamentos) 
-          ? p.medicamentos 
-          : [p.medicamentos];
+      // 3. Exames solicitados (opcional)
+      exames.forEach(e => {
+        const servico = allServicos.find(s => s.categoria === 'exame' && s.nome.toLowerCase() === e.tipo.toLowerCase());
+        itens.push({
+          descricao: `Exame - ${e.tipo}`,
+          quantidade: 1,
+          valor_unitario: servico?.preco || 0,
+          obrigatorio: false,
+          tipo: 'exame'
+        });
+      });
 
+      // 4. Medicamentos prescritos (opcional)
+      prescricoes.forEach(p => {
+        const meds = Array.isArray(p.medicamentos) ? p.medicamentos : [p.medicamentos];
         meds?.forEach((med: any) => {
-          if (med.venderNaClinica === true && med.preco > 0) {
+          if (med.venderNaClinica && med.preco > 0) {
             itens.push({
               descricao: `${med.nome} - ${med.dose}`,
               quantidade: med.quantidade || 1,
               valor_unitario: med.preco,
-              pode_desmarcar: true,
-              selecionado: true,
+              obrigatorio: false,
               tipo: 'medicamento'
             });
           }
         });
       });
 
-      setBillingItems(itens);
-      setIsBillingModalOpen(true);
-    } catch (err: any) {
-      toast({ title: 'Erro ao preparar cobrança', description: err.message, variant: 'destructive' });
-    } finally {
-      setIsFinalizing(false);
-    }
-  };
+      const valorTotal = itens.reduce((acc, i) => acc + (i.valor_unitario * i.quantidade), 0);
 
-  const confirmarFinalizacao = async () => {
-    if (!consultaId || !consulta) return;
-    setIsFinalizing(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const itensSelecionados = billingItems.filter(i => i.selecionado);
-      const valorTotal = itensSelecionados.reduce((acc, i) => acc + i.valor_unitario, 0);
-
-      // Criar cobrança no financeiro
+      // Criar pré-cobrança no financeiro com status "rascunho"
       const { data: financeiro, error: finError } = await supabase
         .from('financeiro')
         .insert({
@@ -467,9 +460,8 @@ export default function ProntuarioPage() {
           valor_total: valorTotal,
           desconto: 0,
           valor_final: valorTotal,
-          status: 'pendente',
-          forma_pagamento: 'pix',
-          criado_por: user?.id,
+          status: 'rascunho',
+          criado_por: user.id,
           data_vencimento: new Date().toISOString().split('T')[0]
         })
         .select()
@@ -477,43 +469,34 @@ export default function ProntuarioPage() {
 
       if (finError) throw finError;
 
-      // Criar itens da cobrança
-      if (itensSelecionados.length > 0) {
+      if (financeiro && itens.length > 0) {
         const { error: itemsError } = await supabase
           .from('financeiro_itens')
           .insert(
-            itensSelecionados.map(item => ({
+            itens.map(item => ({
               financeiro_id: financeiro.id,
               descricao: item.descricao,
-              quantidade: 1,
-              valor_unitario: item.valor_unitario
+              quantidade: item.quantidade,
+              valor_unitario: item.valor_unitario,
+              obrigatorio: item.obrigatorio
             }))
           );
         if (itemsError) throw itemsError;
       }
 
-      // Atualizar status da consulta
-      const { error: consultaError } = await supabase
+      // Atualizar status da consulta para concluido
+      await supabase
         .from('consultas')
         .update({ status: 'concluido' })
         .eq('id', consultaId);
-      
-      if (consultaError) throw consultaError;
 
-      toast({ title: 'Atendimento finalizado!', description: 'Cobrança gerada no financeiro.' });
+      toast({ title: 'Atendimento finalizado!', description: 'Cobrança enviada para o financeiro como rascunho.' });
       navigate('/prontuarios');
     } catch (err: any) {
       toast({ title: 'Erro ao finalizar', description: err.message, variant: 'destructive' });
     } finally {
       setIsFinalizing(false);
-      setIsBillingModalOpen(false);
     }
-  };
-
-  const toggleItem = (index: number, checked: boolean) => {
-    const newItems = [...billingItems];
-    newItems[index].selecionado = checked;
-    setBillingItems(newItems);
   };
 
   const handleAddMedicamento = async () => {
@@ -726,6 +709,232 @@ export default function ProntuarioPage() {
     setAddingExame(false);
   };
 
+  const handleImprimirReceita = async () => {
+    if (!existingId || !consulta) {
+      toast({ title: 'Atenção', description: 'Salve o prontuário primeiro para imprimir a receita.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // 1. Buscar prontuário completo com veterinário
+      const { data: prontuario, error: pError } = await supabase
+        .from('prontuarios')
+        .select(`
+          *,
+          usuarios:veterinario_id ( nome, crmv )
+        `)
+        .eq('id', existingId)
+        .single();
+      
+      if (pError || !prontuario) throw new Error('Erro ao carregar dados do prontuário.');
+
+      // 2. Buscar vacinas aplicadas nesta data
+      const dataAtendimento = prontuario.data_atendimento.split('T')[0];
+      const { data: vacinasReceita } = await supabase
+        .from('vacinas')
+        .select('*')
+        .eq('pet_id', prontuario.pet_id)
+        .eq('data_aplicacao', dataAtendimento);
+
+      // 3. Buscar exames deste prontuário
+      const { data: examesReceita } = await supabase
+        .from('exames')
+        .select('*')
+        .eq('prontuario_id', prontuario.id);
+
+      // 4. Buscar medicamentos das prescrições
+      const { data: prescricoesReceita } = await supabase
+        .from('prescricoes')
+        .select('*')
+        .eq('prontuario_id', prontuario.id)
+        .order('criado_em', { ascending: false });
+
+      // Montar HTML da receita
+      const conteudo = `
+        <html>
+        <head>
+          <title>Receita - ${consulta.pets?.nome}</title>
+          <style>
+            @page { size: A4; margin: 0; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              font-size: 13px; 
+              line-height: 1.6;
+              margin: 0;
+              padding: 2cm;
+              color: #333;
+            }
+            .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { color: #2563eb; margin: 0; font-size: 28px; letter-spacing: -0.5px; }
+            .header p { margin: 5px 0 0; color: #666; font-size: 14px; }
+            
+            .date-box { text-align: right; margin-bottom: 30px; color: #666; }
+            
+            section { margin-bottom: 25px; }
+            h2 { 
+              font-size: 14px; 
+              color: #1e40af; 
+              text-transform: uppercase; 
+              letter-spacing: 1px;
+              border-bottom: 1px solid #e5e7eb; 
+              padding-bottom: 5px; 
+              margin-bottom: 15px;
+              display: flex;
+              align-items: center;
+            }
+            
+            .card { background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 10px; border: 1px solid #f1f5f9; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            .info-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 2px; }
+            .info-value { font-weight: 600; color: #1e293b; font-size: 14px; }
+            
+            .item-prescricao { margin-bottom: 20px; border-left: 4px solid #10b981; padding-left: 15px; }
+            .item-nome { font-weight: bold; font-size: 15px; color: #064e3b; margin-bottom: 2px; }
+            .item-uso { font-style: italic; color: #374151; }
+            .item-obs { font-size: 12px; color: #6b7280; margin-top: 5px; background: #ecfdf5; padding: 5px 10px; border-radius: 4px; }
+            
+            .item-vacina, .item-exame { padding: 12px; background: #f1f5f9; border-radius: 6px; margin-bottom: 10px; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: bold; margin-top: 5px; }
+            .badge-primary { background: #dbeafe; color: #1e40af; }
+            .badge-success { background: #dcfce7; color: #166534; }
+            
+            .orientacoes { background: #fffbe3; border: 1px solid #fef3c7; padding: 15px; border-radius: 8px; font-style: italic; white-space: pre-wrap; }
+            
+            .assinatura-area { margin-top: 80px; text-align: center; }
+            .linha { width: 250px; border-top: 1px solid #333; margin: 0 auto 10px; }
+            .vet-nome { font-weight: bold; font-size: 14px; color: #1e293b; }
+            .vet-crmv { font-size: 11px; color: #64748b; text-transform: uppercase; }
+            
+            @media print {
+              body { padding: 2cm; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>PetFlow</h1>
+            <p>Clínica Veterinária</p>
+          </div>
+
+          <div class="date-box">
+            ${new Date(prontuario.data_atendimento).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+          </div>
+
+          <section>
+            <h2>Paciente e Tutor</h2>
+            <div class="card grid">
+              <div>
+                <div class="info-label">Paciente</div>
+                <div class="info-value">${consulta.pets?.nome}</div>
+                <div style="font-size: 12px; color: #666;">${especieLabels[consulta.pets?.especie || ''] || consulta.pets?.especie} ${consulta.pets?.raca ? ` • ${consulta.pets.raca}` : ''}</div>
+              </div>
+              <div>
+                <div class="info-label">Tutor</div>
+                <div class="info-value">${consulta.tutores?.nome}</div>
+                <div style="font-size: 12px; color: #666;">${consulta.tutores?.telefone || '—'}</div>
+              </div>
+            </div>
+          </section>
+
+          ${prescricoesReceita?.length > 0 ? `
+          <section>
+            <h2>Fórmulas e Medicamentos</h2>
+            <div style="margin-top: 15px;">
+              ${prescricoesReceita.map(p => 
+                p.medicamentos?.map((med: any) => `
+                  <div class="item-prescricao">
+                    <div class="item-nome">${med.nome} — ${med.dose}</div>
+                    <div class="item-uso">Uso ${med.via}: ${med.frequencia} por ${med.duracao}</div>
+                    ${p.observacoes ? `<div class="item-obs">Obs: ${p.observacoes}</div>` : ''}
+                  </div>
+                `).join('')
+              ).join('')}
+            </div>
+          </section>
+          ` : `
+          <section>
+            <h2>Fórmulas e Medicamentos</h2>
+            <p style="color: #94a3b8; font-style: italic;">Nenhum medicamento prescrito.</p>
+          </section>
+          `}
+
+          ${vacinasReceita?.length > 0 ? `
+          <section>
+            <h2>Vacinação Aplicada</h2>
+            ${vacinasReceita.map(v => `
+              <div class="item-vacina">
+                <div style="font-weight: bold; font-size: 13px;">${v.nome}</div>
+                <div style="font-size: 11px; color: #64748b;">${v.fabricante || 'Fabricante não informado'} | Lote: ${v.lote || 'N/I'}</div>
+                <div style="margin-top: 5px; font-size: 11px;">
+                  <span class="badge badge-success">Aplicada: ${new Date(v.data_aplicacao).toLocaleDateString('pt-BR')}</span>
+                  ${v.data_reforco ? `<span class="badge badge-primary">Reforço: ${new Date(v.data_reforco).toLocaleDateString('pt-BR')}</span>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </section>
+          ` : ''}
+
+          ${examesReceita?.length > 0 ? `
+          <section>
+            <h2>Exames Solicitados</h2>
+            ${examesReceita.map(e => `
+              <div class="item-exame">
+                <div style="font-weight: bold;">${e.tipo}</div>
+                <div style="font-size: 11px; color: #64748b;">${e.laboratorio || 'Laboratório a definir'} • Solicitado em: ${new Date(e.data_solicitacao).toLocaleDateString('pt-BR')}</div>
+                <div class="badge ${e.resultado ? 'badge-success' : 'badge-primary'}">
+                  Status: ${e.resultado ? 'Resultado disponível' : 'Aguardando resultado'}
+                </div>
+              </div>
+            `).join('')}
+          </section>
+          ` : ''}
+
+          ${prontuario.orientacoes ? `
+          <section>
+            <h2>Orientações Complementares</h2>
+            <div class="orientacoes">${prontuario.orientacoes}</div>
+          </section>
+          ` : ''}
+
+          ${prontuario.retorno_em ? `
+          <section style="text-align: center; margin: 40px 0;">
+             <div style="display:inline-block; border: 2px dashed #cbd5e1; padding: 10px 30px; border-radius: 10px;">
+               <div class="info-label" style="text-align: center;">Sugestão de Retorno</div>
+               <div class="info-value" style="font-size: 18px; color: #2563eb;">${new Date(prontuario.retorno_em).toLocaleDateString('pt-BR')}</div>
+             </div>
+          </section>
+          ` : ''}
+
+          <div class="assinatura-area">
+            <div class="linha"></div>
+            <div class="vet-nome">Dr(a). ${prontuario.usuarios?.nome}</div>
+            <div class="vet-crmv">Médico(a) Veterinário(a) ${prontuario.usuarios?.crmv ? `• CRMV: ${prontuario.usuarios.crmv}` : ''}</div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const janela = window.open('', '_blank');
+      if (janela) {
+        janela.document.write(conteudo);
+        janela.document.close();
+        
+        janela.addEventListener('load', () => {
+          janela.print();
+          janela.close();
+        });
+
+        // Fallback se o evento load não disparar
+        setTimeout(() => {
+          janela.print();
+        }, 800);
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao preparar impressão', description: err.message, variant: 'destructive' });
+    }
+  };
+
   if (!consulta) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -745,6 +954,14 @@ export default function ProntuarioPage() {
           <p className="text-muted-foreground text-sm">
             {format(new Date(consulta.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
           </p>
+        </div>
+        <div className="ml-auto flex gap-2 no-print">
+          {existingId && (
+            <Button variant="outline" onClick={handleImprimirReceita} className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir Receita
+            </Button>
+          )}
         </div>
       </div>
 
@@ -886,7 +1103,7 @@ export default function ProntuarioPage() {
                     </Button>
                     
                     {existingId && (
-                      <Button type="button" onClick={handleFinalize} className="flex-1 bg-green-600 hover:bg-green-700" disabled={isFinalizing}>
+                      <Button type="button" onClick={handleFinalizarAtendimento} className="flex-1 bg-green-600 hover:bg-green-700" disabled={isFinalizing}>
                         {isFinalizing ? 'Finalizando...' : (
                           <>
                             <Check className="mr-2 h-4 w-4" />
@@ -1306,71 +1523,6 @@ export default function ProntuarioPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Modal de Confirmação de Cobrança */}
-      <Dialog open={isBillingModalOpen} onOpenChange={setIsBillingModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmar Itens da Cobrança</DialogTitle>
-          </DialogHeader>
-          
-          <p className="text-sm text-muted-foreground mb-4">
-            Desmarque os itens que o tutor não vai adquirir na clínica hoje.
-          </p>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-            {billingItems.map((item, i) => (
-              <div key={i} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${item.selecionado ? 'bg-white border-primary/20' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
-                <div className="flex items-center gap-3">
-                  {item.pode_desmarcar ? (
-                    <Checkbox 
-                      checked={item.selecionado}
-                      onCheckedChange={(v) => toggleItem(i, !!v)}
-                      className="border-primary"
-                    />
-                  ) : (
-                    <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center">
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                  <div>
-                    <p className={`font-medium text-sm ${item.selecionado ? 'text-foreground' : 'text-muted-foreground'}`}>{item.descricao}</p>
-                    {!item.pode_desmarcar ? (
-                      <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Item obrigatório</p>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground uppercase">Opcional</p>
-                    )}
-                  </div>
-                </div>
-                <p className={`font-bold text-sm ${item.selecionado ? 'text-green-600' : 'text-muted-foreground line-through'}`}>
-                  R$ {item.valor_unitario.toFixed(2)}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t pt-4 mt-4">
-            <div className="flex justify-between items-center font-bold text-lg">
-              <span>Total Estimado</span>
-              <span className="text-green-700 text-2xl">
-                R$ {billingItems
-                  .filter(i => i.selecionado)
-                  .reduce((acc, i) => acc + i.valor_unitario, 0)
-                  .toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0 mt-6">
-            <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
-              Voltar
-            </Button>
-            <Button onClick={confirmarFinalizacao} className="bg-green-600 hover:bg-green-700 flex-1" disabled={isFinalizing}>
-              {isFinalizing ? 'Processando...' : 'Gerar Cobrança e Finalizar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

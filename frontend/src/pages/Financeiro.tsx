@@ -14,6 +14,17 @@ import { Plus, Search, Filter, DollarSign, Clock, Calendar, CheckCircle2, Chevro
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FinanceiroItem {
   id?: string;
@@ -21,6 +32,7 @@ interface FinanceiroItem {
   quantidade: number;
   valor_unitario: number;
   valor_total: number;
+  obrigatorio?: boolean;
 }
 
 interface Cobranca {
@@ -29,7 +41,7 @@ interface Cobranca {
   valor_total: number;
   desconto: number;
   valor_final: number;
-  status: 'pendente' | 'pago' | 'cancelado';
+  status: 'rascunho' | 'pendente' | 'pago' | 'cancelado' | 'reembolsado';
   forma_pagamento: string;
   data_vencimento: string;
   data_pagamento: string | null;
@@ -41,6 +53,7 @@ interface Cobranca {
 }
 
 const statusColors: Record<string, string> = {
+  rascunho: 'bg-slate-100 text-slate-700 border-slate-200',
   pago: 'bg-green-100 text-green-700 border-green-200',
   pendente: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   cancelado: 'bg-red-100 text-red-700 border-red-200',
@@ -48,6 +61,7 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
+  rascunho: 'Rascunho',
   pago: 'Pago',
   pendente: 'Pendente',
   cancelado: 'Cancelado',
@@ -81,6 +95,7 @@ export default function Financeiro() {
   const [isNewCobrancaOpen, setIsNewCobrancaOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [selectedCobranca, setSelectedCobranca] = useState<Cobranca | null>(null);
 
   // Estados para Nova Cobrança
@@ -158,6 +173,13 @@ export default function Financeiro() {
       setTutorConsultas([]);
     }
   }, [selectedTutor]);
+
+  // Carregar itens do rascunho quando abrir modal de revisão
+  useEffect(() => {
+    if (selectedCobranca && isReviewOpen) {
+      setItems(selectedCobranca.financeiro_itens.map(i => ({ ...i })));
+    }
+  }, [selectedCobranca, isReviewOpen]);
 
   const handleAddItem = () => {
     setItems([...items, { descricao: '', quantidade: 1, valor_unitario: 0, valor_total: 0 }]);
@@ -256,11 +278,75 @@ export default function Financeiro() {
     }
   };
 
-  const handleCancelar = async (id: string) => {
-    if (!confirm('Deseja realmente cancelar esta cobrança?')) return;
-    const { error } = await supabase.from('financeiro').update({ status: 'cancelado' }).eq('id', id);
-    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Cobrança cancelada' }); fetchData(); }
+  const handleExcluirCobranca = async (financeiroId: string) => {
+    try {
+      // 1. Primeiro excluir os itens vinculados
+      const { error: itemsError } = await supabase
+        .from('financeiro_itens')
+        .delete()
+        .eq('financeiro_id', financeiroId);
+
+      if (itemsError) throw itemsError;
+
+      // 2. Depois excluir a cobrança
+      const { error: cobrancaError } = await supabase
+        .from('financeiro')
+        .delete()
+        .eq('id', financeiroId);
+
+      if (cobrancaError) throw cobrancaError;
+
+      toast({ title: "Cobrança excluída com sucesso!" });
+      fetchData(); // recarregar listagem
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleConfirmarRascunho = async () => {
+    if (!selectedCobranca) return;
+    
+    try {
+      const valorTotal = items.reduce((sum, item) => sum + (Number(item.valor_total) || 0), 0);
+      const valorFinal = valorTotal - (Number(selectedCobranca.desconto) || 0);
+
+      // 1. Deletar itens antigos e inserir novos (simplifica a lógica de edição/remoção)
+      const { error: deleteError } = await supabase.from('financeiro_itens').delete().eq('financeiro_id', selectedCobranca.id);
+      if (deleteError) throw deleteError;
+      
+      const itemsToInsert = items
+        .filter(item => item.valor_total > 0)
+        .map(item => ({
+          financeiro_id: selectedCobranca.id,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          valor_unitario: item.valor_unitario,
+          obrigatorio: item.obrigatorio || false
+        }));
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase.from('financeiro_itens').insert(itemsToInsert);
+        if (itemsError) throw itemsError;
+      }
+
+      // 2. Atualizar status para pendente e valores
+      const { error: updateError } = await supabase
+        .from('financeiro')
+        .update({
+          status: 'pendente',
+          valor_total: valorTotal,
+          valor_final: valorFinal,
+        })
+        .eq('id', selectedCobranca.id);
+
+      if (updateError) throw updateError;
+
+      toast({ title: 'Sucesso', description: 'Cobrança confirmada como pendente!' });
+      setIsReviewOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: 'Erro ao confirmar', description: err.message, variant: 'destructive' });
+    }
   };
 
   // Cálculos de Resumo
@@ -517,6 +603,7 @@ export default function Financeiro() {
                   <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos Status</SelectItem>
+                    <SelectItem value="rascunho">Rascunho</SelectItem>
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="pago">Pago</SelectItem>
                     <SelectItem value="cancelado">Cancelado</SelectItem>
@@ -570,12 +657,37 @@ export default function Financeiro() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      {c.status === 'rascunho' && (
+                        <Button variant="outline" size="sm" className="h-8 gap-1 text-primary border-primary/20 hover:bg-primary/5" onClick={() => { setSelectedCobranca(c); setIsReviewOpen(true); }}>
+                          <ArrowRight className="h-3 w-3" /> Revisar
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver Detalhes" onClick={() => { setSelectedCobranca(c); setIsDetailOpen(true); }}><Eye className="h-4 w-4" /></Button>
                       {c.status === 'pendente' && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" title="Registrar Pagamento" onClick={() => { setSelectedCobranca(c); setIsPaymentOpen(true); }}><CheckCircle2 className="h-4 w-4" /></Button>
                       )}
-                      {userData?.cargo === 'admin' && c.status !== 'cancelado' && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" title="Cancelar" onClick={() => handleCancelar(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                      {userData?.cargo === 'admin' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" title="Excluir Cobrança">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir cobrança?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita e removerá todos os itens vinculados a esta fatura.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleExcluirCobranca(c.id)} className="bg-red-600 hover:bg-red-700">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </TableCell>
@@ -680,6 +792,147 @@ export default function Financeiro() {
                   <strong>Observações:</strong> {selectedCobranca.observacoes}
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Revisar e Confirmar Rascunho */}
+      <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Revisar e Confirmar Cobrança</DialogTitle>
+          </DialogHeader>
+          
+          {selectedCobranca && (
+            <div className="space-y-6 py-4">
+              <div className="flex justify-between items-start bg-primary/5 p-4 rounded-lg border border-primary/10">
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-primary tracking-wider">Tutor</p>
+                  <p className="font-bold text-lg">{selectedCobranca.tutores?.nome}</p>
+                  <p className="text-xs text-muted-foreground">{selectedCobranca.tutores?.telefone}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase font-bold text-primary tracking-wider">Consulta</p>
+                  <p className="text-sm font-medium">{selectedCobranca.consultas?.tipo || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground">{selectedCobranca.consultas?.data_hora ? format(new Date(selectedCobranca.consultas.data_hora), 'dd/MM/yyyy HH:mm') : ''}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Itens para Cobrança</h3>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={handleAddItem}>
+                    <Plus className="h-3 w-3" /> Adicionar Item
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="w-[45%]">Descrição</TableHead>
+                        <TableHead>Qtd</TableHead>
+                        <TableHead>V. Unit</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead className="w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item, idx) => (
+                        <TableRow key={idx} className={item.obrigatorio ? 'bg-green-50/30' : ''}>
+                          <TableCell>
+                            <div className="relative">
+                              <Input 
+                                value={item.descricao} 
+                                onChange={e => updateItem(idx, 'descricao', e.target.value)} 
+                                className="h-8 text-sm"
+                                disabled={item.obrigatorio}
+                              />
+                              {item.obrigatorio && (
+                                <span className="absolute -top-2 -left-1 bg-green-500 text-white text-[8px] px-1 rounded uppercase font-bold">Obrigatório</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Input 
+                              type="number" 
+                              value={item.quantidade} 
+                              onChange={e => updateItem(idx, 'quantidade', e.target.value)} 
+                              className="h-8 w-16 text-sm"
+                              disabled={item.obrigatorio}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input 
+                              type="number" 
+                              value={item.valor_unitario} 
+                              onChange={e => updateItem(idx, 'valor_unitario', e.target.value)} 
+                              className="h-8 w-24 text-sm"
+                              disabled={item.obrigatorio}
+                            />
+                          </TableCell>
+                          <TableCell className="font-bold text-sm">
+                            {formatCurrency(item.valor_total)}
+                          </TableCell>
+                          <TableCell>
+                            {!item.obrigatorio && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 pt-4 border-t">
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Observações</Label>
+                    <Textarea 
+                      placeholder="Observações internas..." 
+                      className="text-sm min-h-[80px]"
+                      value={selectedCobranca.observacoes}
+                      onChange={e => setSelectedCobranca({...selectedCobranca, observacoes: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="bg-muted/30 p-4 rounded-lg space-y-2 border">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground uppercase text-[10px] font-bold">Subtotal:</span>
+                    <span className="font-medium">{formatCurrency(items.reduce((sum, i) => sum + i.valor_total, 0))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground uppercase text-[10px] font-bold">Desconto:</span>
+                    <Input 
+                      type="number" 
+                      className="h-7 w-24 text-right text-sm bg-white" 
+                      value={selectedCobranca.desconto}
+                      onChange={e => setSelectedCobranca({...selectedCobranca, desconto: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xl font-bold border-t pt-2 mt-2 text-primary">
+                    <span className="uppercase text-xs self-center">Total Final:</span>
+                    <span>{formatCurrency(items.reduce((sum, i) => sum + i.valor_total, 0) - selectedCobranca.desconto)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setIsReviewOpen(false)}>Cancelar</Button>
+                <Button onClick={handleConfirmarRascunho} className="bg-green-600 hover:bg-green-700 h-11 px-8 gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> Confirmar e Gerar Cobrança
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
