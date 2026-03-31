@@ -11,6 +11,8 @@ import { ArrowLeft, FileText, Save, Syringe, Microscope, Plus, Trash2, Pill, Che
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,13 +20,14 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Consulta {
   id: string;
   pet_id: string;
+  tutor_id: string; // Adicionado
   data_hora: string;
   tipo: string;
   motivo: string;
   observacoes: string | null;
   status: string;
   pets: { nome: string; especie: string; raca: string } | null;
-  tutores: { nome: string } | null;
+  tutores: { id: string, nome: string } | null; // Adicionado id
 }
 
 interface Prontuario {
@@ -154,6 +157,11 @@ export default function ProntuarioPage() {
   const [observacoesPrescricao, setObservacoesPrescricao] = useState('');
   const [addingPrescricao, setAddingPrescricao] = useState(false);
 
+  // Estados para Cobrança
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [billingItems, setBillingItems] = useState<any[]>([]);
+  const [allServicos, setAllServicos] = useState<any[]>([]);
+
   useEffect(() => {
     if (!consultaId) return;
 
@@ -177,9 +185,9 @@ export default function ProntuarioPage() {
         supabase
           .from('consultas')
           .select(`
-            id, pet_id, data_hora, tipo, status, motivo, observacoes,
+            id, pet_id, tutor_id, data_hora, tipo, status, motivo, observacoes,
             pets ( nome, especie, raca ),
-            tutores ( nome )
+            tutores ( id, nome )
           `)
           .eq('id', consultaId)
           .single(),
@@ -273,21 +281,173 @@ export default function ProntuarioPage() {
   };
 
   const handleFinalize = async () => {
-    if (!consultaId) return;
+    if (!consultaId || !consulta) return;
     setIsFinalizing(true);
     
-    const { error } = await supabase
-      .from('consultas')
-      .update({ status: 'concluido' })
-      .eq('id', consultaId);
+    try {
+      // 1. Buscar preços do catálogo
+      const { data: servicos } = await supabase
+        .from('servicos')
+        .select('id, nome, categoria, preco')
+        .eq('ativo', true);
+      
+      setAllServicos(servicos || []);
 
-    if (error) {
-      toast({ title: 'Erro ao finalizar', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Atendimento finalizado!' });
-      navigate('/prontuarios');
+      const buscarPreco = (nome: string, categoria: string) => {
+        const servico = servicos?.find(s => 
+          s.nome.toLowerCase().includes(nome.toLowerCase()) || 
+          s.categoria?.toLowerCase() === categoria.toLowerCase()
+        );
+        return servico?.preco || 0;
+      };
+
+      const buscarPrecoConsulta = (tipo: string) => {
+        const mapeamento: Record<string, string> = {
+          'consulta': 'Consulta Clínica Geral',
+          'retorno': 'Consulta de Retorno',
+          'emergencia': 'Consulta de Emergência',
+          'cirurgia': 'Castração',
+          'vacina': 'Vacina V8 / V10',
+          'exame': 'Hemograma Completo',
+          'banho_tosa': 'Banho e Tosa (Pequeno Porte)'
+        };
+        
+        const nomeServico = mapeamento[tipo] || 'Consulta Clínica Geral';
+        const servico = servicos?.find(s => s.nome === nomeServico);
+        return {
+          preco: servico?.preco || 120.00,
+          nome: nomeServico
+        };
+      };
+
+      // 2. Montar itens da cobrança
+      const itens: any[] = [];
+
+      // Consulta
+      const infoConsulta = buscarPrecoConsulta(consulta.tipo);
+      itens.push({
+        descricao: infoConsulta.nome,
+        quantidade: 1,
+        valor_unitario: infoConsulta.preco,
+        pode_desmarcar: false,
+        selecionado: true
+      });
+
+      // Exames
+      exames.forEach(ex => {
+        const preco = buscarPreco(ex.tipo, 'exame');
+        itens.push({
+          descricao: `Exame - ${ex.tipo}`,
+          quantidade: 1,
+          valor_unitario: preco,
+          pode_desmarcar: true,
+          selecionado: true
+        });
+      });
+
+      // Vacinas
+      vacinas.forEach(v => {
+        const preco = buscarPreco(v.nome, 'vacina');
+        itens.push({
+          descricao: `Vacina - ${v.nome}`,
+          quantidade: 1,
+          valor_unitario: preco,
+          pode_desmarcar: false,
+          selecionado: true
+        });
+      });
+
+      // Medicamentos
+      prescricoes.forEach(p => {
+        p.medicamentos.forEach((med: any) => {
+          const preco = buscarPreco(med.nome, 'medicamento');
+          if (preco > 0) {
+            itens.push({
+              descricao: `${med.nome} - ${med.dose}`,
+              quantidade: 1,
+              valor_unitario: preco,
+              pode_desmarcar: true,
+              selecionado: true
+            });
+          }
+        });
+      });
+
+      setBillingItems(itens);
+      setIsBillingModalOpen(true);
+    } catch (err: any) {
+      toast({ title: 'Erro ao preparar cobrança', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsFinalizing(false);
     }
-    setIsFinalizing(false);
+  };
+
+  const confirmarFinalizacao = async () => {
+    if (!consultaId || !consulta) return;
+    setIsFinalizing(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const itensSelecionados = billingItems.filter(i => i.selecionado);
+      const valorTotal = itensSelecionados.reduce((acc, i) => acc + i.valor_unitario, 0);
+
+      // Criar cobrança no financeiro
+      const { data: financeiro, error: finError } = await supabase
+        .from('financeiro')
+        .insert({
+          consulta_id: consultaId,
+          tutor_id: consulta.tutor_id || consulta.tutores?.id,
+          descricao: `Atendimento - ${consulta.pets?.nome}`,
+          valor_total: valorTotal,
+          desconto: 0,
+          valor_final: valorTotal,
+          status: 'pendente',
+          forma_pagamento: 'pix',
+          criado_por: user?.id,
+          data_vencimento: new Date().toISOString().split('T')[0]
+        })
+        .select()
+        .single();
+
+      if (finError) throw finError;
+
+      // Criar itens da cobrança
+      if (itensSelecionados.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('financeiro_itens')
+          .insert(
+            itensSelecionados.map(item => ({
+              financeiro_id: financeiro.id,
+              descricao: item.descricao,
+              quantidade: 1,
+              valor_unitario: item.valor_unitario
+            }))
+          );
+        if (itemsError) throw itemsError;
+      }
+
+      // Atualizar status da consulta
+      const { error: consultaError } = await supabase
+        .from('consultas')
+        .update({ status: 'concluido' })
+        .eq('id', consultaId);
+      
+      if (consultaError) throw consultaError;
+
+      toast({ title: 'Atendimento finalizado!', description: 'Cobrança gerada no financeiro.' });
+      navigate('/prontuarios');
+    } catch (err: any) {
+      toast({ title: 'Erro ao finalizar', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsFinalizing(false);
+      setIsBillingModalOpen(false);
+    }
+  };
+
+  const toggleItem = (index: number, checked: boolean) => {
+    const newItems = [...billingItems];
+    newItems[index].selecionado = checked;
+    setBillingItems(newItems);
   };
 
   const handleAddMedicamento = async () => {
@@ -799,6 +959,71 @@ export default function ProntuarioPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Confirmação de Cobrança */}
+      <Dialog open={isBillingModalOpen} onOpenChange={setIsBillingModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Itens da Cobrança</DialogTitle>
+          </DialogHeader>
+          
+          <p className="text-sm text-muted-foreground mb-4">
+            Desmarque os itens que o tutor não vai adquirir na clínica hoje.
+          </p>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+            {billingItems.map((item, i) => (
+              <div key={i} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${item.selecionado ? 'bg-white border-primary/20' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
+                <div className="flex items-center gap-3">
+                  {item.pode_desmarcar ? (
+                    <Checkbox 
+                      checked={item.selecionado}
+                      onCheckedChange={(v) => toggleItem(i, !!v)}
+                      className="border-primary"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
+                  <div>
+                    <p className={`font-medium text-sm ${item.selecionado ? 'text-foreground' : 'text-muted-foreground'}`}>{item.descricao}</p>
+                    {!item.pode_desmarcar ? (
+                      <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Item obrigatório</p>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground uppercase">Opcional</p>
+                    )}
+                  </div>
+                </div>
+                <p className={`font-bold text-sm ${item.selecionado ? 'text-green-600' : 'text-muted-foreground line-through'}`}>
+                  R$ {item.valor_unitario.toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-4 mt-4">
+            <div className="flex justify-between items-center font-bold text-lg">
+              <span>Total Estimado</span>
+              <span className="text-green-700 text-2xl">
+                R$ {billingItems
+                  .filter(i => i.selecionado)
+                  .reduce((acc, i) => acc + i.valor_unitario, 0)
+                  .toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-6">
+            <Button variant="outline" onClick={() => setIsBillingModalOpen(false)}>
+              Voltar
+            </Button>
+            <Button onClick={confirmarFinalizacao} className="bg-green-600 hover:bg-green-700 flex-1" disabled={isFinalizing}>
+              {isFinalizing ? 'Processando...' : 'Gerar Cobrança e Finalizar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
