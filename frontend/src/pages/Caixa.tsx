@@ -89,6 +89,7 @@ export default function Caixa() {
   });
 
   const [consultasDia, setConsultasDia] = useState<any[]>([]);
+  const [mensagemSaldo, setMensagemSaldo] = useState('');
 
   const fetchCaixa = async () => {
     setLoading(true);
@@ -140,6 +141,30 @@ export default function Caixa() {
 
     setLoading(false);
   };
+
+  const buscarSaldoAnterior = async () => {
+    const { data: ultimoCaixa } = await supabase
+      .from('caixa')
+      .select('saldo_final, data')
+      .eq('status', 'fechado')
+      .order('data', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (ultimoCaixa) {
+      setSaldoInicialInput(String(ultimoCaixa.saldo_final || 0));
+      setMensagemSaldo(`Saldo do dia ${format(new Date(ultimoCaixa.data + 'T00:00:00'), 'dd/MM/yyyy')}: R$ ${ultimoCaixa.saldo_final?.toFixed(2)}`);
+    } else {
+      setSaldoInicialInput('0.00');
+      setMensagemSaldo('');
+    }
+  };
+
+  useEffect(() => {
+    if (isAbrirOpen) {
+      buscarSaldoAnterior();
+    }
+  }, [isAbrirOpen]);
 
   useEffect(() => {
     fetchCaixa();
@@ -235,6 +260,41 @@ export default function Caixa() {
     const { error } = await supabase.from('caixa_movimentacoes').delete().eq('id', id);
     if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     else { toast({ title: 'Movimentação excluída' }); fetchCaixa(); }
+  };
+
+  const handleSelecionarConsulta = async (consultaId: string) => {
+    if (consultaId === 'none' || !consultaId) {
+      setNovaMovimentacao(prev => ({ ...prev, consulta_id: '' }));
+      return;
+    }
+
+    setNovaMovimentacao(prev => ({ ...prev, consulta_id: consultaId }));
+
+    // Buscar dados no financeiro
+    const { data: financeiro, error } = await supabase
+      .from('financeiro')
+      .select('valor_final, descricao, status, forma_pagamento')
+      .eq('consulta_id', consultaId)
+      .in('status', ['pendente', 'pago'])
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar financeiro:', error);
+      return;
+    }
+
+    if (financeiro) {
+      setNovaMovimentacao(prev => ({
+        ...prev,
+        valor: String(financeiro.valor_final),
+        descricao: financeiro.descricao || prev.descricao || 'Atendimento',
+        forma_pagamento: financeiro.forma_pagamento || prev.forma_pagamento
+      }));
+      toast({ 
+        title: 'Dados preenchidos!', 
+        description: `Cobrança de R$ ${financeiro.valor_final.toFixed(2)} (${financeiro.forma_pagamento})` 
+      });
+    }
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -417,6 +477,12 @@ export default function Caixa() {
         <DialogContent>
           <DialogHeader><DialogTitle>Abrir Caixa</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
+            {mensagemSaldo && (
+              <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-100 flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                <span>{mensagemSaldo}</span>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Saldo Inicial em Dinheiro (R$)</Label>
               <Input type="number" step="0.01" placeholder="0,00" value={saldoInicialInput} onChange={e => setSaldoInicialInput(e.target.value)} />
@@ -450,7 +516,7 @@ export default function Caixa() {
             </div>
             <div className="space-y-2">
                <Label>Vincular Consulta (Opcional)</Label>
-               <Select value={novaMovimentacao.consulta_id} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, consulta_id: v})}>
+               <Select value={novaMovimentacao.consulta_id || 'none'} onValueChange={handleSelecionarConsulta}>
                   <SelectTrigger><SelectValue placeholder="Selecione uma consulta..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhuma consulta</SelectItem>

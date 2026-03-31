@@ -76,9 +76,12 @@ interface Prescricao {
     frequencia: string;
     duracao: string;
     via: string;
+    preco: number;
+    venderNaClinica: boolean;
+    quantidade: number;
   }[];
   observacoes: string | null;
-  created_at: string;
+  criado_em: string;
 }
 
 const especieLabels: Record<string, string> = {
@@ -162,6 +165,21 @@ export default function ProntuarioPage() {
   const [billingItems, setBillingItems] = useState<any[]>([]);
   const [allServicos, setAllServicos] = useState<any[]>([]);
 
+  // Novos estados para integração com estoque e catálogo
+  const [vacinasEstoque, setVacinasEstoque] = useState<any[]>([]);
+  const [medicamentosEstoque, setMedicamentosEstoque] = useState<any[]>([]);
+  const [vacinaSelecionadaId, setVacinaSelecionadaId] = useState<string>('');
+  const [venderNaClinica, setVenderNaClinica] = useState(true);
+  const [buscaExame, setBuscaExame] = useState('');
+  const [examesServicos, setExamesServicos] = useState<any[]>([]);
+  const [examesFiltrados, setExamesFiltrados] = useState<any[]>([]);
+  const [precoExame, setPrecoExame] = useState<number>(0);
+  const [precoEncontrado, setPrecoEncontrado] = useState(false);
+  const [salvarNoCatalogo, setSalvarNoCatalogo] = useState(false);
+  const [buscaMed, setBuscaMed] = useState('');
+  const [medicamentoSelecionadoId, setMedicamentoSelecionadoId] = useState<string>('');
+  const [precoMedicamento, setPrecoMedicamento] = useState<number>(0);
+
   useEffect(() => {
     if (!consultaId) return;
 
@@ -176,12 +194,13 @@ export default function ProntuarioPage() {
     };
 
     const fetchPrescricoes = async (pId: string) => {
-      const { data } = await supabase.from('prescricoes').select('*').eq('prontuario_id', pId).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('prescricoes').select('*').eq('prontuario_id', pId).order('criado_em', { ascending: false });
+      if (error) console.error('Erro ao buscar prescrições:', error);
       if (data) setPrescricoes(data as Prescricao[]);
     };
 
     const fetchData = async () => {
-      const [consultaRes, prontuarioRes] = await Promise.all([
+      const [consultaRes, prontuarioRes, estoqueRes, servicosRes] = await Promise.all([
         supabase
           .from('consultas')
           .select(`
@@ -192,6 +211,14 @@ export default function ProntuarioPage() {
           .eq('id', consultaId)
           .single(),
         supabase.from('prontuarios').select('*').eq('consulta_id', consultaId).maybeSingle(),
+        supabase
+          .from('estoque_produtos')
+          .select('id, nome, marca, preco_venda, estoque_atual, categoria_id, estoque_categorias(nome)')
+          .eq('ativo', true),
+        supabase
+          .from('servicos')
+          .select('*')
+          .eq('ativo', true)
       ]);
 
       if (consultaRes.data) {
@@ -220,10 +247,52 @@ export default function ProntuarioPage() {
           retorno_em: p.retorno_em ?? '',
         });
       }
+
+      if (estoqueRes.data) {
+        const todosProdutos = estoqueRes.data as any[];
+        // Filtrar Vacinas
+        setVacinasEstoque(todosProdutos.filter(p => p.estoque_categorias?.nome === 'Vacinas'));
+        // Filtrar Medicamentos (remover categorias que não são remédios/materiais clínicos se necessário)
+        setMedicamentosEstoque(todosProdutos.filter(p => 
+          !['Vacinas', 'Rações', 'Acessórios', 'Higiene e Banho'].includes(p.estoque_categorias?.nome)
+        ));
+      }
+
+      if (servicosRes.data) {
+        setAllServicos(servicosRes.data);
+      }
     };
 
     fetchData();
   }, [consultaId]);
+
+  // Buscar exames do catálogo no início
+  useEffect(() => {
+    const buscarExamesServicos = async () => {
+      const { data, error } = await supabase
+        .from('servicos')
+        .select('id, nome, preco')
+        .eq('categoria', 'exame')
+        .eq('ativo', true)
+        .order('nome');
+      
+      console.log('Exames do catálogo:', data, error);
+      setExamesServicos(data || []);
+    };
+    buscarExamesServicos();
+  }, []);
+
+  // Filtrar ao digitar exame
+  useEffect(() => {
+    if (buscaExame.length >= 2) {
+      const filtrados = examesServicos.filter(e =>
+        e.nome.toLowerCase().includes(buscaExame.toLowerCase())
+      );
+      setExamesFiltrados(filtrados);
+    } else {
+      setExamesFiltrados([]);
+    }
+  }, [buscaExame, examesServicos]);
 
   if (authLoading || !userData) {
     return (
@@ -285,18 +354,10 @@ export default function ProntuarioPage() {
     setIsFinalizing(true);
     
     try {
-      // 1. Buscar preços do catálogo
-      const { data: servicos } = await supabase
-        .from('servicos')
-        .select('id, nome, categoria, preco')
-        .eq('ativo', true);
-      
-      setAllServicos(servicos || []);
-
       const buscarPreco = (nome: string, categoria: string) => {
-        const servico = servicos?.find(s => 
-          s.nome.toLowerCase().includes(nome.toLowerCase()) || 
-          s.categoria?.toLowerCase() === categoria.toLowerCase()
+        const servico = allServicos?.find(s => 
+          s.nome.toLowerCase() === nome.toLowerCase() || 
+          s.nome.toLowerCase().includes(nome.toLowerCase())
         );
         return servico?.preco || 0;
       };
@@ -313,7 +374,7 @@ export default function ProntuarioPage() {
         };
         
         const nomeServico = mapeamento[tipo] || 'Consulta Clínica Geral';
-        const servico = servicos?.find(s => s.nome === nomeServico);
+        const servico = allServicos?.find(s => s.nome === nomeServico);
         return {
           preco: servico?.preco || 120.00,
           nome: nomeServico
@@ -335,11 +396,11 @@ export default function ProntuarioPage() {
 
       // Exames
       exames.forEach(ex => {
-        const preco = buscarPreco(ex.tipo, 'exame');
+        const servico = allServicos.find(s => s.categoria === 'exame' && s.nome.toLowerCase() === ex.tipo.toLowerCase());
         itens.push({
           descricao: `Exame - ${ex.tipo}`,
           quantidade: 1,
-          valor_unitario: preco,
+          valor_unitario: servico?.preco || 0,
           pode_desmarcar: true,
           selecionado: true
         });
@@ -347,27 +408,32 @@ export default function ProntuarioPage() {
 
       // Vacinas
       vacinas.forEach(v => {
-        const preco = buscarPreco(v.nome, 'vacina');
+        const prod = vacinasEstoque.find(ve => ve.nome.toLowerCase() === v.nome.toLowerCase());
         itens.push({
           descricao: `Vacina - ${v.nome}`,
           quantidade: 1,
-          valor_unitario: preco,
+          valor_unitario: prod?.preco_venda || buscarPreco(v.nome, 'vacina'),
           pode_desmarcar: false,
-          selecionado: true
+          selecionado: true,
+          tipo: 'vacina'
         });
       });
 
-      // Medicamentos
+      // Medicamentos (Prescrições)
       prescricoes.forEach(p => {
-        p.medicamentos.forEach((med: any) => {
-          const preco = buscarPreco(med.nome, 'medicamento');
-          if (preco > 0) {
+        const meds = Array.isArray(p.medicamentos) 
+          ? p.medicamentos 
+          : [p.medicamentos];
+
+        meds?.forEach((med: any) => {
+          if (med.venderNaClinica === true && med.preco > 0) {
             itens.push({
               descricao: `${med.nome} - ${med.dose}`,
-              quantidade: 1,
-              valor_unitario: preco,
+              quantidade: med.quantidade || 1,
+              valor_unitario: med.preco,
               pode_desmarcar: true,
-              selecionado: true
+              selecionado: true,
+              tipo: 'medicamento'
             });
           }
         });
@@ -459,17 +525,26 @@ export default function ProntuarioPage() {
     setAddingPrescricao(true);
     const { data: { user } } = await supabase.auth.getUser();
     
+    const medicamentoSelecionado = medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId);
+    
+    // 1. Montar objeto do medicamento
+    const novoMedicamento = {
+      nome: nomeMed,
+      dose,
+      frequencia,
+      duracao,
+      via,
+      preco: precoMedicamento || medicamentoSelecionado?.preco_venda || 0,
+      venderNaClinica,
+      quantidade: 1
+    };
+
+    // 2. Salvar no banco
     const { data, error } = await supabase.from('prescricoes').insert({
       pet_id: consulta.pet_id,
       prontuario_id: existingId,
       veterinario_id: user?.id,
-      medicamentos: [{
-        nome: nomeMed,
-        dose: dose,
-        frequencia: frequencia,
-        duracao: duracao,
-        via: via
-      }],
+      medicamentos: [novoMedicamento],
       observacoes: observacoesPrescricao || null,
       data_emissao: new Date().toISOString().split('T')[0]
     }).select().single();
@@ -477,13 +552,49 @@ export default function ProntuarioPage() {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      setPrescricoes([data as Prescricao, ...prescricoes]);
+      // 3. Atualizar estado local imediatamente
+      setPrescricoes(prev => [data as Prescricao, ...prev]);
+
+      // 4. Baixar do estoque se "Vender na clínica" estiver marcado
+      if (venderNaClinica && medicamentoSelecionado) {
+        const quantidade = 1; 
+        const novaQtde = medicamentoSelecionado.estoque_atual - quantidade;
+
+        await supabase
+          .from('estoque_produtos')
+          .update({ 
+            estoque_atual: novaQtde,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq('id', medicamentoSelecionado.id);
+
+        await supabase
+          .from('estoque_movimentacoes')
+          .insert({
+            produto_id: medicamentoSelecionado.id,
+            tipo: 'venda',
+            quantidade: quantidade,
+            quantidade_anterior: medicamentoSelecionado.estoque_atual,
+            quantidade_atual: novaQtde,
+            motivo: `Venda - ${consulta.pets?.nome}`,
+            consulta_id: consulta.id,
+            registrado_por: user?.id
+          });
+          
+        setMedicamentosEstoque(prev => prev.map(m => m.id === medicamentoSelecionado.id ? { ...m, estoque_atual: novaQtde } : m));
+      }
+
+      // 5. Limpar formulário
       setNomeMed('');
       setDose('');
       setFrequencia('');
       setDuracao('');
       setVia('oral');
+      setPrecoMedicamento(0);
+      setVenderNaClinica(true);
       setObservacoesPrescricao('');
+      setMedicamentoSelecionadoId('');
+      setBuscaMed('');
       toast({ title: 'Sucesso', description: 'Medicamento adicionado!' });
     }
     setAddingPrescricao(false);
@@ -498,6 +609,8 @@ export default function ProntuarioPage() {
     setAddingVacina(true);
     const { data: { user } } = await supabase.auth.getUser();
     
+    const vacinaSelecionada = vacinasEstoque.find(v => v.id === vacinaSelecionadaId);
+
     const { data, error } = await supabase.from('vacinas').insert({
       pet_id: consulta.pet_id,
       veterinario_id: user?.id,
@@ -512,6 +625,36 @@ export default function ProntuarioPage() {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
+      // Baixar 1 unidade do estoque se selecionado
+      if (vacinaSelecionada) {
+        const novaQtde = vacinaSelecionada.estoque_atual - 1;
+        
+        await supabase
+          .from('estoque_produtos')
+          .update({ 
+            estoque_atual: novaQtde,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq('id', vacinaSelecionada.id);
+
+        // Registrar movimentação
+        await supabase
+          .from('estoque_movimentacoes')
+          .insert({
+            produto_id: vacinaSelecionada.id,
+            tipo: 'saida',
+            quantidade: 1,
+            quantidade_anterior: vacinaSelecionada.estoque_atual,
+            quantidade_atual: novaQtde,
+            motivo: `Vacina aplicada - ${consulta.pets?.nome}`,
+            consulta_id: consulta.id,
+            registrado_por: user?.id
+          });
+          
+        // Atualizar lista local do estoque para refletir a baixa se necessário (opcional pois o fetch inicial já passou)
+        setVacinasEstoque(prev => prev.map(v => v.id === vacinaSelecionada.id ? { ...v, estoque_atual: novaQtde } : v));
+      }
+
       setVacinas([data as Vacina, ...vacinas]);
       setNomeVacina('');
       setFabricante('');
@@ -519,6 +662,7 @@ export default function ProntuarioPage() {
       setDataAplicacao(new Date().toISOString().split('T')[0]);
       setDataReforco('');
       setObservacoesVacina('');
+      setVacinaSelecionadaId('');
       toast({ title: 'Sucesso', description: 'Vacina adicionada com sucesso!' });
     }
     setAddingVacina(false);
@@ -533,6 +677,24 @@ export default function ProntuarioPage() {
     setAddingExame(true);
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Salvar no catálogo se solicitado e não encontrado
+    if (salvarNoCatalogo && !precoEncontrado && precoExame > 0) {
+      const { data: newServico, error: servicoError } = await supabase
+        .from('servicos')
+        .insert({
+          nome: tipoExame,
+          categoria: 'exame',
+          preco: precoExame,
+          ativo: true
+        })
+        .select()
+        .single();
+      
+      if (!servicoError && newServico) {
+        setExamesServicos([...examesServicos, newServico]);
+      }
+    }
+
     const { data, error } = await supabase.from('exames').insert({
       pet_id: consulta.pet_id,
       prontuario_id: existingId,
@@ -550,11 +712,15 @@ export default function ProntuarioPage() {
     } else {
       setExames([data as Exame, ...exames]);
       setTipoExame('');
+      setBuscaExame('');
       setLaboratorio('');
       setDataSolicitacao(new Date().toISOString().split('T')[0]);
       setDataResultadoExame('');
       setResultadoExame('');
       setDescricaoExame('');
+      setSalvarNoCatalogo(false);
+      setPrecoExame(0);
+      setPrecoEncontrado(false);
       toast({ title: 'Sucesso', description: 'Exame adicionado com sucesso!' });
     }
     setAddingExame(false);
@@ -749,13 +915,48 @@ export default function ProntuarioPage() {
                   <>
                     <h3 className="font-medium">Adicionar Medicamento</h3>
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1 col-span-2">
+                        <Label>Buscar Medicamento no Estoque</Label>
+                        <Input 
+                          placeholder="Digite o nome para filtrar..." 
+                          value={buscaMed} 
+                          onChange={e => setBuscaMed(e.target.value)} 
+                        />
+                      </div>
                       <div className="space-y-1">
                         <Label>Nome do Medicamento *</Label>
-                        <Input 
-                          placeholder="Ex: Amoxicilina" 
-                          value={nomeMed} 
-                          onChange={e => setNomeMed(e.target.value)} 
-                        />
+                        <div className="flex flex-col gap-2">
+                          <Select 
+                            value={medicamentoSelecionadoId} 
+                            onValueChange={(id) => {
+                              setMedicamentoSelecionadoId(id);
+                              const med = medicamentosEstoque.find(m => m.id === id);
+                              if (med) {
+                                  setNomeMed(med.nome);
+                                  setVenderNaClinica(med.estoque_atual > 0);
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione do estoque" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {medicamentosEstoque
+                                .filter(m => m.nome.toLowerCase().includes(buscaMed.toLowerCase()))
+                                .map(m => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    {m.nome} ({m.marca || '—'}) - {m.estoque_atual} un.
+                                  </SelectItem>
+                                ))
+                              }
+                            </SelectContent>
+                          </Select>
+                          <Input 
+                            placeholder="Nome manual (se não houver no estoque)" 
+                            value={nomeMed} 
+                            onChange={e => setNomeMed(e.target.value)} 
+                          />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <Label>Dose</Label>
@@ -782,6 +983,39 @@ export default function ProntuarioPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="col-span-2 flex items-center space-x-2 py-2 px-3 bg-blue-50/50 rounded-md border border-blue-100">
+                        <Checkbox 
+                          id="vender_clinica" 
+                          checked={venderNaClinica} 
+                          onCheckedChange={(v) => setVenderNaClinica(!!v)} 
+                        />
+                        <Label htmlFor="vender_clinica" className="text-sm font-medium leading-none cursor-pointer">
+                          Vender na clínica (baixa automática do estoque)
+                        </Label>
+                        {medicamentoSelecionadoId && (
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            Estoque: {medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId)?.estoque_atual} un.
+                          </span>
+                        )}
+                      </div>
+
+                      {venderNaClinica && (
+                        <div className="col-span-2 space-y-1 p-3 bg-green-50/30 rounded-md border border-green-100">
+                          <Label className="text-xs text-green-800">💰 Valor Unitário para Cobrança</Label>
+                          <div className="flex items-center gap-2">
+                             <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                className="h-9" 
+                                value={precoMedicamento || ''} 
+                                onChange={e => setPrecoMedicamento(Number(e.target.value))} 
+                             />
+                             <span className="text-xs text-muted-foreground italic">
+                               (Padrão: R$ {medicamentoSelecionadoId ? medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId)?.preco_venda : '0.00'})
+                             </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label>Observações da Prescrição</Label>
@@ -798,24 +1032,42 @@ export default function ProntuarioPage() {
                   </>
                 )}
                 
-                {/* Lista de medicamentos adicionados */}
+                {/* Lista de medicamentos registrados */}
                 <div className="space-y-3 mt-6">
-                  <h4 className="text-sm font-semibold text-muted-foreground">Medicamentos Prescritos</h4>
-                  {prescricoes.length === 0 ? (
-                    <p className="text-sm text-center py-4 text-muted-foreground bg-gray-50/50 rounded-lg">Nenhum medicamento registrado.</p>
-                  ) : (
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Medicamentos Registrados</h4>
+                  {prescricoes.length > 0 ? (
                     <div className="grid gap-3">
-                      {prescricoes.map((p, i) => (
-                        <div key={i} className="p-3 bg-gray-50 rounded-lg border border-l-4 border-l-green-500 shadow-sm">
-                          {p.medicamentos.map((m, idx) => (
-                            <div key={idx}>
-                              <p className="font-bold text-green-800">{m.nome} - {m.dose}</p>
-                              <p className="text-sm text-gray-500">{m.frequencia} por {m.duracao} - Via {m.via}</p>
+                      {prescricoes.map((prescricao, i) => (
+                        <div key={i} className="p-3 bg-white rounded-lg border border-l-4 border-l-green-500 shadow-sm space-y-2">
+                          {prescricao.medicamentos?.map((med: any, j: number) => (
+                            <div key={j} className="flex justify-between items-start">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-green-900">{med.nome} — {med.dose}</p>
+                                <p className="text-sm text-gray-600">
+                                  {med.frequencia} por {med.duracao} — Via {med.via}
+                                </p>
+                                {med.venderNaClinica && (
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 py-0 h-4">
+                                      <Check className="w-2.5 h-2.5 mr-1" /> Venda na Clínica
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-green-600 text-sm">
+                                  R$ {(med.preco || 0).toFixed(2)}
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <p className="text-center py-6 text-gray-400 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                      Nenhum medicamento registrado.
+                    </p>
                   )}
                 </div>
               </div>
@@ -838,7 +1090,71 @@ export default function ProntuarioPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label>Tipo do Exame *</Label>
-                        <Input placeholder="Ex: Hemograma Completo" value={tipoExame} onChange={e => setTipoExame(e.target.value)} />
+                        <div className="relative">
+                          <Input
+                            placeholder="Digite para buscar exame..."
+                            value={buscaExame}
+                            onChange={(e) => {
+                              setBuscaExame(e.target.value)
+                              setTipoExame(e.target.value)
+                              setPrecoExame(0)
+                              setPrecoEncontrado(false)
+                            }}
+                          />
+                          
+                          {/* Dropdown de sugestões */}
+                          {buscaExame.length >= 2 && examesFiltrados.length > 0 && (
+                            <div className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                              {examesFiltrados.map((exame) => (
+                                <div
+                                  key={exame.id}
+                                  className="px-4 py-2 hover:bg-green-50 cursor-pointer flex justify-between"
+                                  onClick={() => {
+                                    setTipoExame(exame.nome)
+                                    setBuscaExame(exame.nome)
+                                    setPrecoExame(exame.preco)
+                                    setPrecoEncontrado(true)
+                                  }}
+                                >
+                                  <span className="text-sm">{exame.nome}</span>
+                                  <span className="text-green-600 font-medium text-sm">R$ {exame.preco}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Badge de preço encontrado */}
+                        {precoEncontrado && (
+                          <div className="flex items-center gap-2 text-green-600 mt-1">
+                            <Check className="w-4 h-4" />
+                            <span className="text-xs font-medium">Preço encontrado: R$ {precoExame?.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {/* Campo de preço manual se não encontrou */}
+                        {buscaExame.length >= 2 && !precoEncontrado && (
+                          <div className="space-y-2 mt-2 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                            <Label className="text-xs text-amber-800">💰 Preço do Exame</Label>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              className="h-8"
+                              value={precoExame || ''}
+                              onChange={(e) => setPrecoExame(Number(e.target.value))}
+                            />
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="salvar_catalogo_exame"
+                                checked={salvarNoCatalogo}
+                                onCheckedChange={(v) => setSalvarNoCatalogo(v as boolean)}
+                              />
+                              <Label htmlFor="salvar_catalogo_exame" className="text-[10px] cursor-pointer">
+                                Salvar no catálogo para próxima vez
+                              </Label>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label>Laboratório</Label>
@@ -905,8 +1221,39 @@ export default function ProntuarioPage() {
                     <h3 className="font-medium">Adicionar Vacina</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <Label>Nome da Vacina *</Label>
-                        <Input placeholder="Ex: V10, Antirrábica" value={nomeVacina} onChange={e => setNomeVacina(e.target.value)} />
+                        <Label>Selecionar Vacina *</Label>
+                        <Select 
+                          value={vacinaSelecionadaId} 
+                          onValueChange={(id) => {
+                            setVacinaSelecionadaId(id);
+                            const vacina = vacinasEstoque.find(v => v.id === id);
+                            if (vacina) {
+                                setNomeVacina(vacina.nome);
+                                setFabricante(vacina.marca || '');
+                            }
+                          }}
+                        >
+                          <SelectTrigger className={vacinasEstoque.find(v => v.id === vacinaSelecionadaId)?.estoque_atual === 0 ? 'border-red-500' : ''}>
+                            <SelectValue placeholder="Escolha a vacina" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vacinasEstoque.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.nome} ({v.marca}) - {v.estoque_atual} un.
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {vacinaSelecionadaId && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground">
+                              Estoque: {vacinasEstoque.find(v => v.id === vacinaSelecionadaId)?.estoque_atual} unidades
+                            </span>
+                            {vacinasEstoque.find(v => v.id === vacinaSelecionadaId)?.estoque_atual === 0 && (
+                              <Badge variant="destructive" className="text-[10px] py-0 h-4">Sem estoque</Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label>Fabricante</Label>
