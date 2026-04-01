@@ -59,9 +59,9 @@ interface Movimentacao {
   quantidade_anterior: number;
   quantidade_atual: number;
   motivo: string;
-  created_at: string;
+  criado_em: string;
   registrado_por: string;
-  estoque_produtos?: { nome: string; marca: string };
+  estoque_produtos?: { nome: string; marca: string; unidade: string };
   usuarios?: { nome: string };
 }
 
@@ -123,7 +123,14 @@ export default function Estoque() {
       const [prodRes, catRes, movRes] = await Promise.all([
         supabase.from('estoque_produtos').select('*, estoque_categorias(nome)').eq('ativo', true).order('nome'),
         supabase.from('estoque_categorias').select('*').order('nome'),
-        supabase.from('estoque_movimentacoes').select('*, estoque_produtos(nome, marca), usuarios(nome)').order('created_at', { ascending: false }).limit(50)
+        supabase.from('estoque_movimentacoes')
+          .select(`
+            *,
+            estoque_produtos ( nome, unidade, marca ),
+            usuarios!registrado_por ( nome )
+          `)
+          .order('criado_em', { ascending: false })
+          .limit(50)
       ]);
 
       if (prodRes.data) setProdutos(prodRes.data);
@@ -418,32 +425,46 @@ export default function Estoque() {
                   <tr>
                     <th className="p-4 font-semibold">Data/Hora</th>
                     <th className="p-4 font-semibold">Produto</th>
-                    <th className="p-4 font-semibold">Tipo / Motivo</th>
-                    <th className="p-4 font-semibold text-right">Qtde</th>
-                    <th className="p-4 font-semibold text-center">Saldo Atual</th>
-                    {isAdmin && <th className="p-4 font-semibold">Registrado por</th>}
+                    <th className="p-4 font-semibold">Tipo</th>
+                    <th className="p-4 font-semibold text-right">Qtd</th>
+                    <th className="p-4 font-semibold text-right">Anterior</th>
+                    <th className="p-4 font-semibold text-right">Atual</th>
+                    <th className="p-4 font-semibold">Motivo</th>
+                    <th className="p-4 font-semibold">Registrado por</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {movimentacoes.map(m => (
+                  {loading ? (
+                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Carregando movimentações...</td></tr>
+                  ) : movimentacoes.length === 0 ? (
+                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação registrada.</td></tr>
+                  ) : movimentacoes.map(m => (
                     <tr key={m.id} className="hover:bg-muted/30">
-                      <td className="p-4 text-muted-foreground">{format(new Date(m.created_at), "dd/MM/yy HH:mm")}</td>
-                      <td className="p-4">
-                        <p className="font-medium text-foreground">{m.estoque_produtos?.nome}</p>
-                        <p className="text-xs text-muted-foreground">{m.estoque_produtos?.marca}</p>
+                      <td className="p-4 text-muted-foreground">
+                        {format(new Date(m.criado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          {m.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4 text-green-600" /> : <ArrowDownLeft className="h-4 w-4 text-red-600" />}
-                          <span className="capitalize font-medium">{m.tipo}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{m.motivo}</p>
+                        <p className="font-medium text-foreground">{m.estoque_produtos?.nome}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{m.estoque_produtos?.marca}</p>
+                      </td>
+                      <td className="p-4">
+                        {m.tipo === 'entrada' ? (
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-none">Entrada</Badge>
+                        ) : m.tipo === 'saida' ? (
+                          <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-none">Saída</Badge>
+                        ) : m.tipo === 'venda' ? (
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-none">Venda</Badge>
+                        ) : (
+                          <Badge variant="outline" className="capitalize">{m.tipo}</Badge>
+                        )}
                       </td>
                       <td className={`p-4 text-right font-bold ${m.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                         {m.tipo === 'entrada' ? '+' : '-'}{m.quantidade}
                       </td>
-                      <td className="p-4 text-center font-medium">{m.quantidade_atual}</td>
-                      {isAdmin && <td className="p-4 text-muted-foreground">{m.usuarios?.nome}</td>}
+                      <td className="p-4 text-right text-muted-foreground">{m.quantidade_anterior}</td>
+                      <td className="p-4 text-right font-bold text-foreground">{m.quantidade_atual}</td>
+                      <td className="p-4 text-muted-foreground">{m.motivo}</td>
+                      <td className="p-4 text-muted-foreground font-medium">{m.usuarios?.nome || 'Sistema'}</td>
                     </tr>
                   ))}
                 </tbody>

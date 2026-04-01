@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, DollarSign, Wallet, ArrowUpCircle, ArrowDownCircle, Clock, Calendar, Lock, Unlock, Trash2, History, Receipt } from 'lucide-react';
+import { Plus, Search, DollarSign, Wallet, ArrowUpCircle, ArrowDownCircle, Clock, Calendar, Lock, Unlock, Trash2, History, Receipt, AlertTriangle } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,6 +66,9 @@ const getCategoriaLabel = (value: string) => {
 export default function Caixa() {
   const { user, userData } = useAuth();
   const { toast } = useToast();
+  const hoje = new Date().toLocaleDateString('en-CA', { 
+    timeZone: 'America/Sao_Paulo' 
+  });
   const [caixaAtivo, setCaixaAtivo] = useState<CaixaAtivo | null>(null);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([]);
@@ -93,30 +96,29 @@ export default function Caixa() {
 
   const fetchCaixa = async () => {
     setLoading(true);
-    const hoje = new Date().toLocaleDateString('en-CA', { 
-      timeZone: 'America/Sao_Paulo' 
-    });
     
-    // Verificar se tem caixa aberto hoje
-    const { data: caixaHoje } = await supabase
+    // Buscar qualquer caixa aberto (independente da data)
+    const { data: caixaAberto } = await supabase
       .from('caixa')
       .select('*, usuarios!aberto_por(nome)')
-      .eq('data', hoje)
       .eq('status', 'aberto')
+      .order('data', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    setCaixaAtivo(caixaHoje);
+    setCaixaAtivo(caixaAberto);
 
-    if (caixaHoje) {
+    if (caixaAberto) {
       // Buscar movimentações
       const { data: movs } = await supabase
         .from('caixa_movimentacoes')
         .select('*, usuarios!registrado_por(nome)')
-        .eq('caixa_id', caixaHoje.id)
+        .eq('caixa_id', caixaAberto.id)
         .order('criado_em', { ascending: false });
       setMovimentacoes(movs || []);
 
-      // Buscar consultas do dia para vínculo
+      // Buscar consultas do dia do caixa para vínculo
+      const dataCaixa = caixaAberto.data;
       const { data: cons } = await supabase
         .from('consultas')
         .select(`
@@ -124,8 +126,8 @@ export default function Caixa() {
           pets ( nome ),
           tutores ( nome )
         `)
-        .gte('data_hora', `${hoje}T00:00:00-03:00`)
-        .lte('data_hora', `${hoje}T23:59:59-03:00`)
+        .gte('data_hora', `${dataCaixa}T00:00:00-03:00`)
+        .lte('data_hora', `${dataCaixa}T23:59:59-03:00`)
         .in('status', ['concluido', 'agendado', 'confirmado'])
         .order('data_hora', { ascending: true });
       setConsultasDia(cons || []);
@@ -203,9 +205,6 @@ export default function Caixa() {
 
   const handleAbrirCaixa = async () => {
     if (!saldoInicialInput) return;
-    const hoje = new Date().toLocaleDateString('en-CA', { 
-      timeZone: 'America/Sao_Paulo' 
-    });
     const { error } = await supabase
       .from('caixa')
       .insert({
@@ -369,6 +368,15 @@ export default function Caixa() {
           )}
         </div>
       </div>
+
+      {caixaAtivo && caixaAtivo.data !== hoje && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+          <p className="text-sm text-amber-700">
+            Atenção: O caixa do dia {format(new Date(caixaAtivo.data + 'T00:00:00'), 'dd/MM/yyyy')} ainda está aberto. Feche-o antes de abrir o caixa de hoje.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="hoje" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-[400px]">

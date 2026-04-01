@@ -625,7 +625,7 @@ export default function ProntuarioPage() {
           .from('estoque_movimentacoes')
           .insert({
             produto_id: vacinaSelecionada.id,
-            tipo: 'saida',
+            tipo: 'venda',
             quantidade: 1,
             quantidade_anterior: vacinaSelecionada.estoque_atual,
             quantidade_atual: novaQtde,
