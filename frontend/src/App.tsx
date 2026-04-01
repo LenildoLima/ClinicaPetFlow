@@ -19,6 +19,7 @@ import PetHistorico from "./pages/PetHistorico";
 import Financeiro from "./pages/Financeiro";
 import Caixa from "./pages/Caixa";
 import Estoque from "./pages/Estoque";
+import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
@@ -103,6 +104,11 @@ const App = () => (
             <Route path="/estoque" element={
               <RoleRoute allowedRoles={['admin', 'recepcionista']}>
                 <AppLayout><Estoque /></AppLayout>
+              </RoleRoute>
+            } />
+            <Route path="/relatorios" element={
+              <RoleRoute allowedRoles={['admin']}>
+                <AppLayout><Relatorios /></AppLayout>
               </RoleRoute>
             } />
             <Route path="/configuracoes" element={

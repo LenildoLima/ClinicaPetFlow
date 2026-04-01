@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useAuth } from '@/contexts/AuthContext';
-import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark } from 'lucide-react';
+import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark, FileBarChart } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: 'Financeiro', url: '/financeiro', icon: DollarSign, roles: ['admin', 'recepcionista'] },
       { title: 'Caixa', url: '/caixa', icon: Landmark, roles: ['admin', 'recepcionista'] },
+      { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, roles: ['admin'] },
     ],
   },
   {
