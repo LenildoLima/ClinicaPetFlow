@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface ConsultaEdge {
   horario: string;
@@ -96,8 +96,42 @@ export default function Dashboard() {
           .slice(0, 10);
 
         setProximasConsultas(proximas);
+        
+        // Gerar gráfico dos últimos 7 dias
+        const seteDiasAtras = new Date();
+        seteDiasAtras.setDate(seteDiasAtras.getDate() - 6);
+        seteDiasAtras.setHours(0, 0, 0, 0);
 
-        setGraficoSemana([{ dia: 'Hoje', total: totalConsultasHoje }]);
+        const { data: consultasSemana } = await supabase
+          .from('consultas')
+          .select('data_hora')
+          .gte('data_hora', seteDiasAtras.toISOString())
+          .order('data_hora', { ascending: true });
+
+        const graficoBase = [];
+        for (let i = 6; i >= 0; i--) {
+          const data = new Date();
+          data.setDate(data.getDate() - i);
+          const label = data.toLocaleDateString('pt-BR', {
+            weekday: 'short',
+            day: '2-digit',
+            timeZone: 'America/Sao_Paulo'
+          });
+          const dataStr = data.toLocaleDateString('en-CA', {
+            timeZone: 'America/Sao_Paulo'
+          });
+          
+          const total = consultasSemana?.filter(c => {
+            const diaConsulta = new Date(c.data_hora).toLocaleDateString('en-CA', {
+              timeZone: 'America/Sao_Paulo'
+            });
+            return diaConsulta === dataStr;
+          }).length || 0;
+
+          graficoBase.push({ dia: label, total });
+        }
+
+        setGraficoSemana(graficoBase);
       } catch (err) {
         console.error('Erro geral no fallback:', err);
       }
@@ -225,11 +259,37 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={graficoSemana}>
-                      <XAxis dataKey="dia" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                      <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                      <Bar dataKey="total" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                    <BarChart 
+                      data={graficoSemana} 
+                      margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="dia" 
+                        stroke="#888888" 
+                        fontSize={11} 
+                        tickLine={false} 
+                        axisLine={false} 
+                      />
+                      <YAxis 
+                        stroke="#888888" 
+                        fontSize={11} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        allowDecimals={false}
+                        tickFormatter={(value) => `${value}`} 
+                      />
+                      <Tooltip 
+                        cursor={{fill: '#f8fafc'}} 
+                        contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
+                        formatter={(value) => [`${value} consultas`, 'Total']}
+                      />
+                      <Bar 
+                        dataKey="total" 
+                        fill="#16a34a" 
+                        radius={[4, 4, 0, 0]} 
+                        maxBarSize={60}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
