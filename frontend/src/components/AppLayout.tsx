@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark } from 'lucide-react';
 import {
@@ -173,6 +174,48 @@ function AppSidebar() {
   );
 }
 
+function AtualizacaoBanner() {
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW registrado:', r);
+    },
+    onRegisterError(error) {
+      console.log('Erro no SW:', error);
+    },
+  });
+
+  if (!needRefresh) return null;
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white rounded-xl shadow-lg p-4 flex items-center gap-4 max-w-sm w-full mx-4">
+      <div className="flex items-center gap-3 flex-1">
+        <span className="text-2xl">🐾</span>
+        <div>
+          <p className="font-semibold text-sm">Nova versão disponível!</p>
+          <p className="text-xs text-green-100">Clique para atualizar o PetFlow</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setNeedRefresh(false)}
+          className="text-green-200 text-sm px-2"
+        >
+          Depois
+        </button>
+        <button
+          onClick={() => updateServiceWorker(true)}
+          className="bg-white text-green-600 text-sm font-semibold px-3 py-1 rounded-lg whitespace-nowrap"
+        >
+          Atualizar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [mostrarBanner, setMostrarBanner] = useState(false);
@@ -199,6 +242,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   };
 
   return (
+    <>
+    <AtualizacaoBanner />
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
@@ -237,5 +282,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       )}
     </SidebarProvider>
+    </>
   );
 }
