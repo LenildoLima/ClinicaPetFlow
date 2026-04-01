@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark } from 'lucide-react';
 import {
@@ -173,6 +174,30 @@ function AppSidebar() {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [mostrarBanner, setMostrarBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setMostrarBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstalar = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setMostrarBanner(false);
+      }
+      setDeferredPrompt(null);
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -184,6 +209,33 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <main className="flex-1 p-6 overflow-auto">{children}</main>
         </div>
       </div>
+
+      {/* Banner de instalação PWA */}
+      {mostrarBanner && (
+        <div className="fixed bottom-4 left-4 right-4 bg-green-600 text-white rounded-xl p-4 shadow-lg flex items-center justify-between z-50">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🐾</span>
+            <div>
+              <p className="font-semibold text-sm">Instalar PetFlow</p>
+              <p className="text-xs text-green-100">Acesse como app no seu celular</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMostrarBanner(false)}
+              className="text-green-200 text-sm px-2"
+            >
+              Agora não
+            </button>
+            <button
+              onClick={handleInstalar}
+              className="bg-white text-green-600 text-sm font-semibold px-3 py-1 rounded-lg"
+            >
+              Instalar
+            </button>
+          </div>
+        </div>
+      )}
     </SidebarProvider>
   );
 }
