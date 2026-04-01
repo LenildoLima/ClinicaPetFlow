@@ -33,14 +33,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            
+
             {/* Admin Only */}
             <Route path="/" element={
               <RoleRoute allowedRoles={['admin']}>
                 <AppLayout><Dashboard /></AppLayout>
               </RoleRoute>
             } />
-            
+
             {/* Veterinario Only */}
             <Route path="/minha-agenda" element={
               <RoleRoute allowedRoles={['veterinario']}>
@@ -59,7 +59,7 @@ const App = () => (
                 <AppLayout><Agenda /></AppLayout>
               </RoleRoute>
             } />
-            
+
             {/* Everyone */}
             <Route path="/pets" element={
               <ProtectedRoute>

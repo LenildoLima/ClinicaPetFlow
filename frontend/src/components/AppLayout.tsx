@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package } from 'lucide-react';
+import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -16,17 +17,61 @@ import { NavLink } from '@/components/NavLink';
 import { ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const allNavItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard, roles: ['admin'] },
-  { title: 'Minha Agenda', url: '/minha-agenda', icon: Calendar, roles: ['veterinario'] },
-  { title: 'Agenda', url: '/agenda', icon: Calendar, roles: ['admin', 'recepcionista'] },
-  { title: 'Tutores', url: '/tutores', icon: Users, roles: ['admin', 'recepcionista'] },
-  { title: 'Pets', url: '/pets', icon: Heart, roles: ['admin', 'veterinario', 'recepcionista'] },
-  { title: 'Prontuários', url: '/prontuarios', icon: FileText, roles: ['admin', 'veterinario'] },
-  { title: 'Financeiro', url: '/financeiro', icon: DollarSign, roles: ['admin', 'recepcionista'] },
-  { title: 'Caixa', url: '/caixa', icon: Wallet, roles: ['admin', 'recepcionista'] },
-  { title: 'Estoque', url: '/estoque', icon: Package, roles: ['admin', 'recepcionista'] },
-  { title: 'Configurações', url: '/configuracoes', icon: Settings, roles: ['admin', 'veterinario', 'recepcionista'] },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: any;
+  roles: string[];
+}
+
+interface NavGroup {
+  label: string;
+  roles: string[];
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'GERAL',
+    roles: ['admin'],
+    items: [
+      { title: 'Dashboard', url: '/', icon: LayoutDashboard, roles: ['admin'] },
+    ],
+  },
+  {
+    label: 'ATENDIMENTO',
+    roles: ['admin', 'veterinario', 'recepcionista'],
+    items: [
+      { title: 'Agenda', url: '/agenda', icon: Calendar, roles: ['admin', 'recepcionista'] },
+      { title: 'Minha Agenda', url: '/minha-agenda', icon: Calendar, roles: ['veterinario'] },
+      { title: 'Tutores', url: '/tutores', icon: Users, roles: ['admin', 'recepcionista'] },
+      { title: 'Pets', url: '/pets', icon: Heart, roles: ['admin', 'veterinario', 'recepcionista'] },
+      { title: 'Prontuários', url: '/prontuarios', icon: FileText, roles: ['admin', 'veterinario'] },
+    ],
+  },
+  {
+    label: 'FINANCEIRO',
+    roles: ['admin', 'recepcionista'],
+    items: [
+      { title: 'Financeiro', url: '/financeiro', icon: DollarSign, roles: ['admin', 'recepcionista'] },
+      { title: 'Caixa', url: '/caixa', icon: Landmark, roles: ['admin', 'recepcionista'] },
+    ],
+  },
+  {
+    label: 'ESTOQUE',
+    roles: ['admin', 'recepcionista'],
+    items: [
+      { title: 'Estoque', url: '/estoque', icon: Package, roles: ['admin', 'recepcionista'] },
+      { title: 'Serviços', url: '/servicos', icon: Tag, roles: ['admin'] },
+    ],
+  },
+  {
+    label: 'SISTEMA',
+    roles: ['admin', 'veterinario', 'recepcionista'],
+    items: [
+      { title: 'Configurações', url: '/configuracoes', icon: Settings, roles: ['admin', 'veterinario', 'recepcionista'] },
+    ],
+  },
 ];
 
 const formatRole = (role: string) => {
@@ -47,9 +92,13 @@ function AppSidebar() {
     navigate('/login');
   };
 
-  const navItems = allNavItems.filter(item => 
-    userData && item.roles.includes(userData.cargo)
-  );
+  // Filtrar grupos e itens baseado no cargo do usuário
+  const filteredGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => userData && item.roles.includes(userData.cargo)),
+    }))
+    .filter(group => group.items.length > 0);
 
   return (
     <Sidebar className="border-r-0">
@@ -63,27 +112,32 @@ function AppSidebar() {
             <span className="text-xl font-bold text-sidebar-foreground">PetFlow</span>
           </div>
 
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end={item.url === '/'}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                        activeClassName="bg-sidebar-accent text-sidebar-foreground font-semibold"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {filteredGroups.map((group) => (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel className="text-[10px] font-bold text-sidebar-foreground/40 uppercase tracking-widest px-4 mb-1">
+                {group.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          end={item.url === '/'}
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                          activeClassName="bg-sidebar-accent text-sidebar-foreground font-semibold"
+                        >
+                          <item.icon className="h-5 w-5" />
+                          <span>{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </div>
 
         <div className="px-4 pb-6 space-y-4">
