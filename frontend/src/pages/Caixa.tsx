@@ -137,7 +137,38 @@ export default function Caixa() {
       .select('*, aberto:usuarios!aberto_por(nome), fechado:usuarios!fechado_por(nome)')
       .order('data', { ascending: false })
       .limit(20);
-    setHistoricoCaixas(hist || []);
+
+    const historicoCompleto = await Promise.all(
+      (hist || []).map(async (caixa) => {
+        if (caixa.status === 'aberto') {
+          const { data: movs } = await supabase
+            .from('caixa_movimentacoes')
+            .select('tipo, valor')
+            .eq('caixa_id', caixa.id);
+
+          const totalEntradas = movs
+            ?.filter(m => m.tipo === 'entrada')
+            .reduce((acc, m) => acc + Number(m.valor), 0) || 0;
+
+          const totalSaidas = movs
+            ?.filter(m => m.tipo === 'saida')
+            .reduce((acc, m) => acc + Number(m.valor), 0) || 0;
+
+          const saldoAtual = Number(caixa.saldo_inicial) + totalEntradas - totalSaidas;
+
+          return {
+            ...caixa,
+            total_entradas: totalEntradas,
+            total_saidas: totalSaidas,
+            saldo_final: saldoAtual,
+            parcial: true
+          };
+        }
+        return { ...caixa, parcial: false };
+      })
+    );
+
+    setHistoricoCaixas(historicoCompleto);
 
     setLoading(false);
   };
@@ -455,12 +486,21 @@ export default function Caixa() {
                         <TableCell className="text-xs">{h.aberto?.nome}</TableCell>
                         <TableCell className="text-xs">{h.fechado?.nome || '-'}</TableCell>
                         <TableCell>{formatCurrency(h.saldo_inicial)}</TableCell>
-                        <TableCell className="text-green-600">+{formatCurrency(h.total_entradas || 0)}</TableCell>
-                        <TableCell className="text-red-600">-{formatCurrency(h.total_saidas || 0)}</TableCell>
-                        <TableCell className="font-bold">{formatCurrency(h.saldo_final || 0)}</TableCell>
                         <TableCell>
-                           <Badge variant="outline" className={h.status === 'aberto' ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-700'}>
-                             {h.status.toUpperCase()}
+                          <div className="text-green-600">+{formatCurrency(h.total_entradas || 0)}</div>
+                          {h.parcial && <div className="text-[10px] text-muted-foreground italic">(parcial)</div>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-red-600">-{formatCurrency(h.total_saidas || 0)}</div>
+                          {h.parcial && <div className="text-[10px] text-muted-foreground italic">(parcial)</div>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-bold">{formatCurrency(h.saldo_final || 0)}</div>
+                          {h.parcial && <div className="text-[10px] text-muted-foreground italic">(parcial)</div>}
+                        </TableCell>
+                        <TableCell>
+                           <Badge variant="outline" className={h.status === 'aberto' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'}>
+                             {h.status === 'aberto' ? 'EM ANDAMENTO' : 'FECHADO'}
                            </Badge>
                         </TableCell>
                       </TableRow>
