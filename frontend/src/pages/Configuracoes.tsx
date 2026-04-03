@@ -24,7 +24,6 @@ export default function Configuracoes() {
   const abasDisponiveis = [
     { id: 'perfil', label: 'Meu Perfil', icon: UserCircle, roles: ['admin', 'veterinario', 'recepcionista'] },
     { id: 'usuarios', label: 'Usuários', icon: Users, roles: ['admin'] },
-    { id: 'servicos', label: 'Serviços', icon: Settings, roles: ['admin'] },
   ].filter(aba => userData && aba.roles.includes(userData.cargo));
 
   // O activeTab padrão será a primeira aba disponível (perfil para todos)

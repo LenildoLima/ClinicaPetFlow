@@ -20,6 +20,7 @@ import Financeiro from "./pages/Financeiro";
 import Caixa from "./pages/Caixa";
 import Estoque from "./pages/Estoque";
 import Relatorios from "./pages/Relatorios";
+import Servicos from "./pages/Servicos";
 import Configuracoes from "./pages/Configuracoes";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
@@ -109,6 +110,11 @@ const App = () => (
             <Route path="/relatorios" element={
               <RoleRoute allowedRoles={['admin']}>
                 <AppLayout><Relatorios /></AppLayout>
+              </RoleRoute>
+            } />
+            <Route path="/servicos" element={
+              <RoleRoute allowedRoles={['admin']}>
+                <AppLayout><Servicos /></AppLayout>
               </RoleRoute>
             } />
             <Route path="/configuracoes" element={

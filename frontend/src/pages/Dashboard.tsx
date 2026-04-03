@@ -154,8 +154,9 @@ export default function Dashboard() {
           }
         );
 
-        if (!response.ok) {
-          throw new Error('Edge Function fetch invalid');
+        const contentType = response.headers.get("content-type");
+        if (!response.ok || !contentType || !contentType.includes("application/json")) {
+          throw new Error('Edge Function fetch invalid or not JSON');
         }
 
         const result = await response.json();
