@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Users, Pencil, Trash2 } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -98,10 +99,15 @@ export default function Tutores() {
   const { toast } = useToast();
 
   const fetchTutores = async () => {
-    let query = supabase.from('tutores').select('*').order('nome');
-    if (search) query = query.ilike('nome', `%${search}%`);
-    const { data } = await query;
-    setTutores(data ?? []);
+    setLoading(true);
+    try {
+      let query = supabase.from('tutores').select('*').order('nome');
+      if (search) query = query.ilike('nome', `%${search}%`);
+      const { data } = await query;
+      setTutores(data ?? []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchTutores(); }, [search]);
@@ -355,7 +361,20 @@ export default function Tutores() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {tutores.length === 0 ? (
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg animate-pulse">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : tutores.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Users className="h-10 w-10 mb-2" />
               <p>Nenhum tutor encontrado</p>

@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FinanceiroItem {
   id?: string;
@@ -540,46 +541,65 @@ export default function Financeiro() {
 
       {/* Resumo Financeiro */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-green-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Faturamento do Dia</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-700">{formatCurrency(faturamentoDia)}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Soma de pagamentos hoje</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-yellow-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pendente Total</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-700">{formatCurrency(pendenteTotal)}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Valor total a receber</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-blue-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total do Mês</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalMes)}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Mês: {format(new Date(), 'MMMM', { locale: ptBR })}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-primary shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Registros</CardTitle>
-            <Receipt className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{cobrancasFiltradas.length}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">No período selecionado</p>
-          </CardContent>
-        </Card>
+        {loading ? (
+           <>
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="animate-pulse shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-32 mb-2" />
+                  <Skeleton className="h-2 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+           </>
+        ) : (
+          <>
+            <Card className="border-l-4 border-l-green-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Faturamento do Dia</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-700">{formatCurrency(faturamentoDia)}</div>
+                <p className="text-[10px] text-muted-foreground mt-1">Soma de pagamentos hoje</p>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-yellow-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pendente Total</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-700">{formatCurrency(pendenteTotal)}</div>
+                <p className="text-[10px] text-muted-foreground mt-1">Valor total a receber</p>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-blue-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total do Mês</CardTitle>
+                <Calendar className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalMes)}</div>
+                <p className="text-[10px] text-muted-foreground mt-1">Mês: {format(new Date(), 'MMMM', { locale: ptBR })}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-primary shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Registros</CardTitle>
+                <Receipt className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{cobrancasFiltradas.length}</div>
+                <p className="text-[10px] text-muted-foreground mt-1">No período selecionado</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <Card className="shadow-sm">

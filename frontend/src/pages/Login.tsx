@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { PawPrint, Loader2, Camera, User, Eye, EyeOff } from 'lucide-react';
+import { PawPrint, Loader2, Eye, EyeOff } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 import { useToast } from '@/hooks/use-toast';
 
 const signupSchema = z.object({
@@ -52,10 +53,8 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { signIn } = useAuth();
   const navigate = useNavigate();
@@ -76,17 +75,6 @@ export default function Login() {
 
   const selectedRole = form.watch('role');
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const uploadAvatar = async (userId: string) => {
     if (!imageFile) return null;
@@ -169,7 +157,6 @@ export default function Login() {
         setIsSignUp(false);
         form.reset();
         setImageFile(null);
-        setImagePreview(null);
       } else {
         // Sign In
         const { error, data } = await supabase.auth.signInWithPassword({
@@ -224,26 +211,15 @@ export default function Login() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {isSignUp && (
-                <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-                  <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <Avatar className="h-24 w-24 border-2 border-primary/20 group-hover:border-primary transition-colors">
-                      <AvatarImage src={imagePreview || ''} className="object-cover" />
-                      <AvatarFallback className="bg-muted">
-                        <User className="h-10 w-10 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute bottom-0 right-0 p-1.5 bg-primary rounded-full text-primary-foreground shadow-lg">
-                      <Camera className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageChange}
+                <div className="mb-6">
+                  <ImageUpload
+                    onChange={(file) => setImageFile(file)}
+                    onRemove={() => setImageFile(null)}
+                    shape="circle"
+                    size="lg"
+                    placeholder="Foto de perfil"
                   />
-                  <span className="text-xs text-muted-foreground">Foto de perfil (opcional)</span>
+                  <p className="text-center text-xs text-muted-foreground mt-2">Foto de perfil (opcional)</p>
                 </div>
               )}
 
@@ -402,7 +378,6 @@ export default function Login() {
                 setIsSignUp(!isSignUp);
                 form.reset();
                 setImageFile(null);
-                setImagePreview(null);
               }}
               className="font-semibold text-primary hover:underline"
             >

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Calendar as CalendarIcon, Clock, MoreVertical, FileText, CalendarDays } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -79,36 +80,41 @@ export default function Agenda() {
   const navigate = useNavigate();
 
   const fetchConsultas = async () => {
-    let start, end;
-    const now = new Date();
+    setLoading(true);
+    try {
+      let start, end;
+      const now = new Date();
 
-    if (filterType === 'today') {
-      start = startOfDay(now);
-      end = endOfDay(now);
-    } else if (filterType === 'week') {
-      start = startOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
-      end = endOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
-    } else if (filterType === 'month') {
-      start = startOfMonth(now);
-      end = endOfMonth(now);
-    } else {
-      const date = selectedDate || new Date();
-      start = startOfDay(date);
-      end = endOfDay(date);
+      if (filterType === 'today') {
+        start = startOfDay(now);
+        end = endOfDay(now);
+      } else if (filterType === 'week') {
+        start = startOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
+        end = endOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
+      } else if (filterType === 'month') {
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+      } else {
+        const date = selectedDate || new Date();
+        start = startOfDay(date);
+        end = endOfDay(date);
+      }
+
+      const { data } = await supabase
+        .from('consultas')
+        .select('*, pets(nome), tutores(nome), prontuarios(id)')
+        .gte('data_hora', start.toISOString())
+        .lte('data_hora', end.toISOString())
+        .order('data_hora', { ascending: true });
+        
+      const formatadas = ((data as any[]) || []).map(c => ({
+        ...c,
+        status: (c.prontuarios && c.prontuarios.length > 0) ? 'concluido' : c.status
+      }));
+      setConsultas(formatadas);
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = await supabase
-      .from('consultas')
-      .select('*, pets(nome), tutores(nome), prontuarios(id)')
-      .gte('data_hora', start.toISOString())
-      .lte('data_hora', end.toISOString())
-      .order('data_hora', { ascending: true });
-      
-    const formatadas = ((data as any[]) || []).map(c => ({
-      ...c,
-      status: (c.prontuarios && c.prontuarios.length > 0) ? 'concluido' : c.status
-    }));
-    setConsultas(formatadas);
   };
 
   const fetchTutores = async () => {
@@ -349,7 +355,22 @@ export default function Agenda() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {consultas.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg border p-4 animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-16" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : consultas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <CalendarIcon className="h-10 w-10 mb-2" />
               <p>Nenhuma consulta agendada para este período</p>

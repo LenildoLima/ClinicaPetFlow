@@ -9,6 +9,7 @@ import { Calendar as CalendarIcon, Search, FileText, User, Filter } from 'lucide
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Prontuario {
   id: string;
@@ -26,6 +27,7 @@ interface Prontuario {
 
 export default function Prontuarios() {
   const [prontuarios, setProntuarios] = useState<Prontuario[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [veterinarios, setVeterinarios] = useState<{ id: string, nome: string }[]>([]);
@@ -33,51 +35,52 @@ export default function Prontuarios() {
   const navigate = useNavigate();
 
   const fetchProntuarios = async () => {
-    let query = supabase
-      .from('prontuarios')
-      .select(`
-        id, data_atendimento, diagnostico,
-        pets ( nome, especie, raca, foto_url, tutores ( nome ) ),
-        usuarios ( nome )
-      `)
-      .order('data_atendimento', { ascending: false });
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('prontuarios')
+        .select(`
+          id, data_atendimento, diagnostico,
+          pets ( nome, especie, raca, foto_url, tutores ( nome ) ),
+          usuarios ( nome )
+        `)
+        .order('data_atendimento', { ascending: false });
 
-    if (search) {
-      // Busca simplificada por pet ou tutor via filtro manual após busca
-    }
-
-    if (selectedVet !== 'all') {
-      query = query.eq('veterinario_id', selectedVet);
-    }
-
-    if (filterType !== 'all') {
-      const now = new Date();
-      let start, end;
-      if (filterType === 'today') {
-        start = startOfDay(now);
-        end = endOfDay(now);
-      } else if (filterType === 'week') {
-        start = startOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
-        end = endOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
-      } else {
-        start = startOfMonth(now);
-        end = endOfMonth(now);
+      if (selectedVet !== 'all') {
+        query = query.eq('veterinario_id', selectedVet);
       }
-      query = query.gte('data_atendimento', start.toISOString()).lte('data_atendimento', end.toISOString());
-    }
 
-    const { data } = await query;
-    let filtered = (data as unknown as Prontuario[]) ?? [];
-    
-    if (search) {
-      const s = search.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.pets?.nome.toLowerCase().includes(s) || 
-        p.pets?.tutores?.nome.toLowerCase().includes(s)
-      );
-    }
+      if (filterType !== 'all') {
+        const now = new Date();
+        let start, end;
+        if (filterType === 'today') {
+          start = startOfDay(now);
+          end = endOfDay(now);
+        } else if (filterType === 'week') {
+          start = startOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
+          end = endOfWeek(now, { locale: ptBR, weekStartsOn: 1 });
+        } else {
+          start = startOfMonth(now);
+          end = endOfMonth(now);
+        }
+        query = query.gte('data_atendimento', start.toISOString()).lte('data_atendimento', end.toISOString());
+      }
 
-    setProntuarios(filtered);
+      const { data } = await query;
+      let filtered = (data as unknown as Prontuario[]) ?? [];
+      
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter(p => 
+          p.pets?.nome.toLowerCase().includes(s) || 
+          p.pets?.tutores?.nome.toLowerCase().includes(s)
+        );
+      }
+
+      setProntuarios(filtered);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchVeterinarios = async () => {
@@ -138,7 +141,29 @@ export default function Prontuarios() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {prontuarios.map((p) => (
+        {loading ? (
+          <>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i} className="animate-pulse border-l-4 border-l-primary/20">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4 mb-4">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 border-t pt-3">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                  </div>
+                  <Skeleton className="h-8 w-full mt-4" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : prontuarios.map((p) => (
           <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary" onClick={() => navigate(`/prontuarios/${p.id}`)}>
             <CardContent className="p-5">
               <div className="flex items-start gap-4 mb-4">

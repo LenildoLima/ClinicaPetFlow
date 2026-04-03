@@ -5,8 +5,10 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, Search, Filter, ArrowUpRight, ArrowDownLeft, 
   Package, AlertTriangle, XCircle, TrendingUp,
-  Edit, Trash2, History, Tag, Camera
+  Edit, Trash2, History, Tag
 } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Card, CardContent, CardHeader, CardTitle, CardDescription 
 } from '@/components/ui/card';
@@ -112,6 +114,7 @@ export default function Estoque() {
   const [stockInForm, setStockInForm] = useState({ quantidade: 0, motivo: 'Compra' });
   const [categoryForm, setCategoryForm] = useState<Partial<Categoria>>({ nome: '', descricao: '', ativo: true });
   const [selectedCategory, setSelectedCategory] = useState<Categoria | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -143,6 +146,20 @@ export default function Estoque() {
     }
   };
 
+  const handleUploadImagem = async (file: File, bucket: string, path: string) => {
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, { upsert: true });
+    
+    if (uploadError) throw uploadError;
+    
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(path);
+    
+    return urlData.publicUrl;
+  };
+
   const handleSaveProduct = async () => {
     if (!productForm.nome || !productForm.categoria_id) {
       toast({ title: 'Atenção', description: 'Nome e categoria são obrigatórios', variant: 'destructive' });
@@ -150,7 +167,14 @@ export default function Estoque() {
     }
 
     try {
-      const payload = { ...productForm };
+      let fotoUrl = productForm.foto_url;
+
+      if (fotoFile) {
+        const fileName = `produto-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        fotoUrl = await handleUploadImagem(fotoFile, 'produtos', fileName);
+      }
+
+      const payload = { ...productForm, foto_url: fotoUrl };
       delete (payload as any).estoque_categorias; // Limpar dados de relação antes de salvar
 
       let error;
@@ -164,6 +188,7 @@ export default function Estoque() {
 
       toast({ title: selectedProduct ? 'Produto atualizado!' : 'Produto cadastrado!' });
       setIsProductModalOpen(false);
+      setFotoFile(null);
       fetchData();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
@@ -251,7 +276,7 @@ export default function Estoque() {
           <p className="text-muted-foreground">Controle de produtos, suprimentos e movimentações.</p>
         </div>
         {canManage && (
-          <Button onClick={() => { setSelectedProduct(null); setProductForm({ unidade: 'unidade', ativo: true }); setIsProductModalOpen(true); }}>
+          <Button onClick={() => { setSelectedProduct(null); setProductForm({ unidade: 'unidade', ativo: true }); setFotoFile(null); setIsProductModalOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Novo Produto
           </Button>
         )}
@@ -361,7 +386,32 @@ export default function Estoque() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredProdutos.map(p => (
+                    {loading ? (
+                      <>
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <tr key={i} className="animate-pulse">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <div className="space-y-1">
+                                  <Skeleton className="h-4 w-32" />
+                                  <Skeleton className="h-2 w-20" />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Skeleton className="h-4 w-24 mb-1" />
+                              <Skeleton className="h-4 w-16" />
+                            </td>
+                            <td className="p-4 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                            <td className="p-4 text-center"><Skeleton className="h-4 w-20 mx-auto" /></td>
+                            <td className="p-4 text-center"><Skeleton className="h-8 w-16 mx-auto" /></td>
+                          </tr>
+                        ))}
+                      </>
+                    ) : filteredProdutos.length === 0 ? (
+                      <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Nenhum produto encontrado.</td></tr>
+                    ) : filteredProdutos.map(p => (
                       <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
@@ -434,8 +484,23 @@ export default function Estoque() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {loading ? (
-                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Carregando movimentações...</td></tr>
+                   {loading ? (
+                    <>
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="p-4"><Skeleton className="h-4 w-24" /></td>
+                          <td className="p-4">
+                            <Skeleton className="h-4 w-40 mb-1" />
+                            <Skeleton className="h-2 w-20" />
+                          </td>
+                          <td className="p-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                          <td className="p-4 text-right"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                          <td className="p-4 text-right"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                          <td className="p-4"><Skeleton className="h-4 w-32" /></td>
+                          <td className="p-4"><Skeleton className="h-4 w-24" /></td>
+                        </tr>
+                      ))}
+                    </>
                   ) : movimentacoes.length === 0 ? (
                     <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação registrada.</td></tr>
                   ) : movimentacoes.map(m => (
@@ -518,19 +583,16 @@ export default function Estoque() {
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="col-span-2 flex justify-center mb-4">
-              <div className="relative h-24 w-24 rounded-lg bg-muted border-2 border-dashed border-muted-foreground/20 flex flex-col items-center justify-center">
-                {productForm.foto_url ? (
-                  <img src={productForm.foto_url} alt="" className="h-full w-full object-cover rounded-lg" />
-                ) : (
-                  <>
-                    <Camera className="h-6 w-6 text-muted-foreground/60" />
-                    <span className="text-[10px] text-muted-foreground mt-1 font-medium">Foto</span>
-                  </>
-                )}
-                <Button size="icon" variant="secondary" className="absolute -bottom-2 -right-2 h-7 w-7 rounded-full shadow-lg border border-border">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <ImageUpload
+                value={productForm.foto_url}
+                onChange={(file) => setFotoFile(file)}
+                onRemove={() => {
+                  setFotoFile(null);
+                  setProductForm({ ...productForm, foto_url: '' });
+                }}
+                shape="square"
+                size="lg"
+              />
             </div>
             <div className="space-y-2 col-span-2 md:col-span-1">
               <Label>Nome do Produto *</Label>
@@ -586,7 +648,7 @@ export default function Estoque() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsProductModalOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setIsProductModalOpen(false); setFotoFile(null); }}>Cancelar</Button>
             <Button onClick={handleSaveProduct}>Salvar Produto</Button>
           </DialogFooter>
         </DialogContent>

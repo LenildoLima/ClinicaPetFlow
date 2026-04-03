@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Users, Edit2, Camera, Save, UserCircle } from "lucide-react";
+import { Users, Edit2, Save, UserCircle } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
 
 export default function Configuracoes() {
   const { user, userData, refreshUserData } = useAuth();
@@ -45,7 +46,6 @@ export default function Configuracoes() {
   const [loadingDadosPerfil, setLoadingDadosPerfil] = useState(false);
 
   const [uploadingFoto, setUploadingFoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -78,15 +78,12 @@ export default function Configuracoes() {
     setLoadingDadosPerfil(false);
   };
 
-  const handleFotoClick = () => fileInputRef.current?.click();
 
-  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFoto = async (file: File) => {
     try {
       if (!user) return;
       setUploadingFoto(true);
-      if (!e.target.files || e.target.files.length === 0) return;
 
-      const file = e.target.files[0];
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
 
@@ -149,6 +146,13 @@ export default function Configuracoes() {
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [editUsuarioModalOpen, setEditUsuarioModalOpen] = useState(false);
   const [selectedUsuario, setSelectedUsuario] = useState<any>(null);
+  const [cargoEdit, setCargoEdit] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedUsuario) {
+      setCargoEdit(selectedUsuario.cargo || '');
+    }
+  }, [selectedUsuario]);
 
   const fetchUsuarios = async () => {
     setLoadingUsuarios(true);
@@ -253,36 +257,15 @@ export default function Configuracoes() {
             {/* COLUNA ESQUERDA: FOTO E DETALHES DE CONTA */}
             <div className="space-y-6">
               <Card>
-                <CardContent className="pt-6 flex flex-col items-center justify-center space-y-4">
-                  <div className="relative group cursor-pointer" onClick={handleFotoClick}>
-                    <Avatar className="w-24 h-24 border-4 border-white shadow-xl bg-gray-100">
-                      <AvatarImage src={userData.foto_url || undefined} alt="Foto de perfil" className="object-cover" />
-                      <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
-                        {userData.nome?.substring(0, 2).toUpperCase() || 'US'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Camera className="w-8 h-8 text-white" />
-                    </div>
+                  <div className="flex flex-col items-center">
+                    <ImageUpload
+                      value={userData.foto_url || undefined}
+                      onChange={(file) => handleUploadFoto(file)}
+                      shape="circle"
+                      size="lg"
+                    />
+                    {uploadingFoto && <p className="text-sm text-muted-foreground mt-2">Enviando...</p>}
                   </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFotoChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleFotoClick}
-                      disabled={uploadingFoto}
-                    >
-                      {uploadingFoto ? 'Enviando...' : 'Alterar Foto'}
-                    </Button>
-                  </div>
-                </CardContent>
               </Card>
 
               <Card>
@@ -497,19 +480,19 @@ export default function Configuracoes() {
 
                 <div className="space-y-2">
                   <Label htmlFor="modal-cargo">Cargo</Label>
-                  <Select name="cargo" defaultValue={selectedUsuario.cargo}>
+                  <Select name="cargo" value={cargoEdit} onValueChange={setCargoEdit}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um cargo..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedUsuario.cargo === "admin" && <SelectItem value="admin">Administrador</SelectItem>}
+                      <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="veterinario">Veterinário</SelectItem>
                       <SelectItem value="recepcionista">Recepcionista</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {selectedUsuario.cargo === "veterinario" && (
+                {cargoEdit === "veterinario" && (
                   <div className="space-y-2">
                     <Label htmlFor="modal-crmv">CRMV</Label>
                     <Input id="modal-crmv" name="crmv" defaultValue={selectedUsuario.crmv || ""} />
