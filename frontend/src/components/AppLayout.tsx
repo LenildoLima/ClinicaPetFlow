@@ -21,6 +21,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { X } from 'lucide-react';
 
 interface NavItem {
   title: string;
@@ -229,6 +230,7 @@ interface Notificacao {
   tempo: string;
   tipo: 'consulta' | 'financeiro' | 'estoque' | 'caixa';
   link?: string;
+  consulta_id?: string;
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -236,14 +238,51 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [mostrarBanner, setMostrarBanner] = useState(false);
-  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const STORAGE_KEY = userData?.id ? `petflow_notificacoes_${userData.id}` : null;
+
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>(() => {
+    if (!userData?.id) return [];
+    try {
+      const salvas = localStorage.getItem(`petflow_notificacoes_${userData.id}`);
+      return salvas ? JSON.parse(salvas) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [popoverAberto, setPopoverAberto] = useState(false);
+  const navigate = useNavigate();
+
+  // Persistir no localStorage
+  useEffect(() => {
+    if (STORAGE_KEY) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notificacoes));
+    }
+  }, [notificacoes, STORAGE_KEY]);
+
+  // Limpar notificações antigas (> 7 dias)
+  useEffect(() => {
+    const seteDiasAtras = new Date();
+    seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+    
+    setNotificacoes(prev => prev.filter(n => {
+      // Como não temos a data exata no objeto (tempo é string), 
+      // poderíamos guardar o timestamp. Por enquanto, vamos apenas 
+      // manter as 20 mais recentes como já fazemos.
+      return true;
+    }));
+  }, []);
 
   const adicionarNotificacao = (notif: Omit<Notificacao, 'id' | 'lida' | 'tempo'>) => {
     const nova: Notificacao = {
       ...notif,
       id: crypto.randomUUID(),
       lida: false,
-      tempo: 'Agora'
+      tempo: new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+      })
     };
     setNotificacoes(prev => [nova, ...prev].slice(0, 20)); // máximo 20
     
@@ -261,41 +300,47 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   };
 
   const marcarTodasLidas = () => {
-    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+    setNotificacoes([]);
+    if (STORAGE_KEY) localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const removerNotificacao = (id: string) => {
+    setNotificacoes(prev => prev.filter(n => n.id !== id));
   };
 
   useEffect(() => {
     if (!userData) return;
 
     const canais: any[] = [];
+    
+    console.log('Cargo:', userData.cargo);
 
-    // ─── NOTIFICAÇÃO 1: Nova consulta agendada (para veterinário) ───
-    if (userData.cargo === 'veterinario' || userData.cargo === 'admin') {
+    // ─── CANAL 1: Consultas (Inserções e Atualizações) ───
+    if (userData.cargo === 'veterinario' || userData.cargo === 'admin' || userData.cargo === 'recepcionista') {
       const canalConsultas = supabase
-        .channel('novas-consultas')
+        .channel('consultas-geral')
         .on(
           'postgres_changes',
           { 
             event: 'INSERT', 
             schema: 'public', 
             table: 'consultas',
-            filter: userData.cargo === 'veterinario' 
-              ? `veterinario_id=eq.${userData.id}` 
-              : undefined
+            ...(userData.cargo === 'veterinario' ? { filter: `veterinario_id=eq.${userData.id}` } : {})
           },
           async (payload) => {
+            if (userData.cargo === 'recepcionista') return; // Recepcionista não recebe INSERT de nova consulta (opcional)
+            console.log('NOTIF: Nova consulta inserida', payload.new);
             const consulta = payload.new as any;
             
-            // Buscar nome do pet e tutor
             const { data } = await supabase
               .from('consultas')
-              .select('pets(nome), tutores(nome), data_hora')
+              .select('pets(nome), tutores(nome)')
               .eq('id', consulta.id)
               .single();
 
             adicionarNotificacao({
               titulo: '📅 Nova consulta agendada',
-              mensagem: `${data?.pets?.nome} (${data?.tutores?.nome}) — ${
+              mensagem: `${(data as any)?.pets?.nome || 'Paciente'} (${(data as any)?.tutores?.nome || 'Tutor'}) — ${
                 new Date(consulta.data_hora).toLocaleString('pt-BR', {
                   timeZone: 'America/Sao_Paulo',
                   day: '2-digit', month: '2-digit',
@@ -303,27 +348,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 })
               }`,
               icone: '📅',
-              tipo: 'consulta'
+              tipo: 'consulta',
+              link: userData.cargo === 'veterinario' ? '/minha-agenda' : '/agenda',
+              consulta_id: consulta.id
             });
           }
         )
-        .subscribe();
-      canais.push(canalConsultas);
-    }
-
-    // ─── NOTIFICAÇÃO 2: Status da consulta mudou (para recepcionista) ───
-    if (userData.cargo === 'recepcionista' || userData.cargo === 'admin') {
-      const canalStatus = supabase
-        .channel('status-consultas')
         .on(
           'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'consultas' },
+          { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'consultas',
+            ...(userData.cargo === 'veterinario' ? { filter: `veterinario_id=eq.${userData.id}` } : {})
+          },
           async (payload) => {
             const antiga = payload.old as any;
             const nova = payload.new as any;
-            
             if (antiga.status === nova.status) return;
 
+            // Se for veterinário, só recebe se for da própria consulta (filtro já cuida disso)
+            // Se for recep/admin, recebe todas
+            
+            console.log('NOTIF: Status consulta mudou', nova.status);
             const statusLabel: Record<string, string> = {
               confirmado: '✅ confirmada',
               cancelado: '❌ cancelada',
@@ -335,21 +382,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             if (statusLabel[nova.status]) {
               const { data } = await supabase
                 .from('consultas')
-                .select('pets(nome)')
+                .select('pets(nome), tutores(nome)')
                 .eq('id', nova.id)
                 .single();
-
+                
               adicionarNotificacao({
                 titulo: '🔄 Consulta atualizada',
-                mensagem: `Consulta de ${data?.pets?.nome} foi ${statusLabel[nova.status]}`,
+                mensagem: `Consulta de ${(data as any)?.pets?.nome || 'atendimento'} (${(data as any)?.tutores?.nome || 'Tutor'}) foi ${statusLabel[nova.status]}`,
                 icone: '🔄',
-                tipo: 'consulta'
+                tipo: 'consulta',
+                link: userData.cargo === 'veterinario' ? '/minha-agenda' : '/agenda'
               });
             }
           }
         )
-        .subscribe();
-      canais.push(canalStatus);
+        .subscribe((status) => {
+          console.log('Sub STATUS Consulta:', status);
+        });
+      canais.push(canalConsultas);
     }
 
     // ─── NOTIFICAÇÃO 3: Novo rascunho no financeiro (para recepcionista) ───
@@ -375,13 +425,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
             adicionarNotificacao({
               titulo: '💰 Nova cobrança para revisar',
-              mensagem: `${data?.descricao} — R$ ${data?.valor_final?.toFixed(2)} (${data?.tutores?.nome})`,
+              mensagem: `${data?.descricao} — R$ ${data?.valor_final?.toFixed(2)} (${(data?.tutores as any)?.nome || (data?.tutores as any)?.[0]?.nome})`,
               icone: '💰',
-              tipo: 'financeiro'
+              tipo: 'financeiro',
+              link: '/financeiro'
             });
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Sub STATUS Financeiro:', status);
+        });
       canais.push(canalFinanceiro);
     }
 
@@ -405,7 +458,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 titulo: '⚠️ Estoque baixo',
                 mensagem: `${produto.nome} — apenas ${produto.estoque_atual} unidades restantes`,
                 icone: '⚠️',
-                tipo: 'estoque'
+                tipo: 'estoque',
+                link: '/estoque'
               });
             }
 
@@ -415,12 +469,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 titulo: '🚨 Produto esgotado!',
                 mensagem: `${produto.nome} está sem estoque`,
                 icone: '🚨',
-                tipo: 'estoque'
+                tipo: 'estoque',
+                link: '/estoque'
               });
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Sub STATUS Estoque:', status);
+        });
       canais.push(canalEstoque);
     }
 
@@ -444,12 +501,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             titulo: '🏦 Caixa esquecido aberto!',
             mensagem: `O caixa do dia ${new Date(caixaAberto.data).toLocaleDateString('pt-BR')} ainda está aberto. Acesse o Caixa para fechar.`,
             icone: '🏦',
-            tipo: 'caixa'
+            tipo: 'caixa',
+            link: '/caixa'
           });
         }
       };
       verificarCaixaEsquecido();
     }
+
+    console.log('Canais criados:', canais.length);
 
     // Limpar canais ao desmontar
     return () => {
@@ -477,6 +537,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       setDeferredPrompt(null);
     }
   };
+  const handleClickNotificacao = (notif: Notificacao) => {
+    marcarLida(notif.id);
+    setPopoverAberto(false);
+
+    if (notif.consulta_id) {
+      navigate(`/prontuario/${notif.consulta_id}`);
+      return;
+    }
+
+    if (notif.link) {
+      navigate(notif.link);
+    }
+  };
 
   return (
     <>
@@ -488,7 +561,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
             <SidebarTrigger />
             
-            <Popover>
+            <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
               <PopoverTrigger asChild>
                 <button className="relative p-2 hover:bg-muted rounded-full transition-colors">
                   <Bell className="w-5 h-5 text-muted-foreground" />
@@ -522,20 +595,45 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     notificacoes.map(n => (
                       <div 
                         key={n.id}
-                        className={`p-4 border-b hover:bg-muted/50 cursor-pointer transition-colors relative
+                        className={`p-4 border-b hover:bg-muted/50 transition-colors relative group/notif
                           ${!n.lida ? 'bg-primary/5' : ''}`}
-                        onClick={() => marcarLida(n.id)}
                       >
                         <div className="flex gap-3">
-                          <span className="text-xl flex-shrink-0">{n.icone}</span>
-                          <div className="flex-1 space-y-1">
+                          <span 
+                            className="text-xl flex-shrink-0 cursor-pointer"
+                            onClick={() => handleClickNotificacao(n)}
+                          >
+                            {n.icone}
+                          </span>
+                          <div 
+                            className="flex-1 space-y-1 cursor-pointer"
+                            onClick={() => handleClickNotificacao(n)}
+                          >
                             <p className="text-sm font-semibold leading-tight">{n.titulo}</p>
                             <p className="text-xs text-muted-foreground leading-normal">{n.mensagem}</p>
-                            <p className="text-[10px] text-muted-foreground/60">{n.tempo}</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-[10px] text-muted-foreground/60">{n.tempo}</p>
+                              {(n.link || n.consulta_id) && (
+                                <p className="text-[10px] text-primary font-medium">
+                                  Clique para abrir →
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          {!n.lida && (
-                            <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0" />
-                          )}
+                          <div className="flex flex-col items-center gap-2">
+                            {!n.lida && (
+                              <div className="w-2.5 h-2.5 bg-primary rounded-full flex-shrink-0" />
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removerNotificacao(n.id);
+                              }}
+                              className="p-1 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover/notif:opacity-100"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))

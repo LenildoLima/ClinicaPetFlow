@@ -134,7 +134,26 @@ export default function Agenda() {
     setVeterinarios(data ?? []);
   };
 
-  useEffect(() => { fetchConsultas(); }, [filterType, selectedDate]);
+  useEffect(() => { 
+    fetchConsultas(); 
+
+    // Escutar mudanças em tempo real para a agenda geral
+    const canal = supabase
+      .channel('agenda-geral')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'consultas' },
+        () => {
+          console.log('Realtime: Agenda geral atualizada');
+          fetchConsultas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [filterType, selectedDate]);
   useEffect(() => { fetchTutores(); }, [tutorSearch]);
   useEffect(() => { fetchVeterinarios(); }, []);
   useEffect(() => {

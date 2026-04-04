@@ -79,6 +79,7 @@ interface Prescricao {
     preco: number;
     venderNaClinica: boolean;
     quantidade: number;
+    valor_total: number;
   }[];
   observacoes: string | null;
   criado_em: string;
@@ -309,6 +310,38 @@ export default function ProntuarioPage() {
     }
   }, [buscaExame, examesServicos]);
 
+  const calcularQuantidade = (frequencia: string, duracao: string): number => {
+    // Extrair número de doses por dia
+    const dosesMap: Record<string, number> = {
+      'dose única': 1,
+      'a cada 24h': 1,
+      'a cada 12h': 2,
+      'a cada 8h': 3,
+      'a cada 6h': 4,
+      'a cada 4h': 6,
+      'a cada 72h': 0.33,
+      'a cada 48h': 0.5,
+      '1x ao dia': 1,
+      '2x ao dia': 2,
+      '3x ao dia': 3,
+      '8h': 3,
+      '12h': 2,
+      '24h': 1,
+    };
+
+    // Extrair número de dias
+    const diasMatch = duracao.toLowerCase().match(/(\d+)\s*dia/);
+    const dosesMatch = duracao.toLowerCase().match(/(\d+)\s*dose/);
+    
+    const dias = diasMatch ? parseInt(diasMatch[1]) : 1;
+    const doses = dosesMatch ? parseInt(dosesMatch[1]) : null;
+    
+    if (doses) return doses; // se duração for em doses
+    
+    const dosesPorDia = dosesMap[frequencia.toLowerCase()] || 1;
+    return Math.ceil(dias * dosesPorDia);
+  };
+
   if (authLoading || !userData) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50/50">
@@ -438,9 +471,10 @@ export default function ProntuarioPage() {
         meds?.forEach((med: any) => {
           if (med.venderNaClinica && med.preco > 0) {
             itens.push({
-              descricao: `${med.nome} - ${med.dose}`,
+              descricao: `${med.nome} (${med.quantidade}un)`,
               quantidade: med.quantidade || 1,
               valor_unitario: med.preco,
+              valor_total: med.valor_total || (med.quantidade * med.preco),
               obrigatorio: false,
               tipo: 'medicamento'
             });
@@ -510,6 +544,8 @@ export default function ProntuarioPage() {
     
     const medicamentoSelecionado = medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId);
     
+    const quantidadeCalculada = calcularQuantidade(frequencia, duracao);
+    
     // 1. Montar objeto do medicamento
     const novoMedicamento = {
       nome: nomeMed,
@@ -519,7 +555,8 @@ export default function ProntuarioPage() {
       via,
       preco: precoMedicamento || medicamentoSelecionado?.preco_venda || 0,
       venderNaClinica,
-      quantidade: 1
+      quantidade: quantidadeCalculada,
+      valor_total: quantidadeCalculada * (precoMedicamento || medicamentoSelecionado?.preco_venda || 0)
     };
 
     // 2. Salvar no banco
@@ -540,7 +577,7 @@ export default function ProntuarioPage() {
 
       // 4. Baixar do estoque se "Vender na clínica" estiver marcado
       if (venderNaClinica && medicamentoSelecionado) {
-        const quantidade = 1; 
+        const quantidade = calcularQuantidade(frequencia, duracao); 
         const novaQtde = medicamentoSelecionado.estoque_atual - quantidade;
 
         await supabase
@@ -1150,6 +1187,7 @@ export default function ProntuarioPage() {
                               const med = medicamentosEstoque.find(m => m.id === id);
                               if (med) {
                                   setNomeMed(med.nome);
+                                  setPrecoMedicamento(med.preco_venda);
                                   setVenderNaClinica(med.estoque_atual > 0);
                               }
                             }}
@@ -1216,7 +1254,20 @@ export default function ProntuarioPage() {
                         )}
                       </div>
 
-                      {venderNaClinica && (
+                      {frequencia && duracao && (
+                        <div className="col-span-2 bg-green-50 border border-green-200 rounded-lg p-3 space-y-1">
+                          <p className="text-sm text-green-700">
+                            <strong>Quantidade necessária:</strong> {calcularQuantidade(frequencia, duracao)} unidades
+                          </p>
+                          {(precoMedicamento > 0 || (medicamentoSelecionadoId && medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId)?.preco_venda > 0)) && (
+                            <p className="text-sm text-green-700">
+                              <strong>Valor total:</strong> R$ {(calcularQuantidade(frequencia, duracao) * (precoMedicamento || medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId)?.preco_venda || 0)).toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {!medicamentoSelecionadoId && venderNaClinica && (
                         <div className="col-span-2 space-y-1 p-3 bg-green-50/30 rounded-md border border-green-100">
                           <Label className="text-xs text-green-800">💰 Valor Unitário para Cobrança</Label>
                           <div className="flex items-center gap-2">
@@ -1227,9 +1278,6 @@ export default function ProntuarioPage() {
                                 value={precoMedicamento || ''} 
                                 onChange={e => setPrecoMedicamento(Number(e.target.value))} 
                              />
-                             <span className="text-xs text-muted-foreground italic">
-                               (Padrão: R$ {medicamentoSelecionadoId ? medicamentosEstoque.find(m => m.id === medicamentoSelecionadoId)?.preco_venda : '0.00'})
-                             </span>
                           </div>
                         </div>
                       )}
@@ -1263,6 +1311,9 @@ export default function ProntuarioPage() {
                                 <p className="text-sm text-gray-600">
                                   {med.frequencia} por {med.duracao} — Via {med.via}
                                 </p>
+                                <p className="text-xs text-gray-400">
+                                  Quantidade: {med.quantidade} unidades × R$ {med.preco?.toFixed(2)}
+                                </p>
                                 {med.venderNaClinica && (
                                   <div className="flex items-center gap-1.5 mt-1">
                                     <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 py-0 h-4">
@@ -1272,8 +1323,8 @@ export default function ProntuarioPage() {
                                 )}
                               </div>
                               <div className="text-right">
-                                <span className="font-bold text-green-600 text-sm">
-                                  R$ {(med.preco || 0).toFixed(2)}
+                                <span className="font-bold text-green-600">
+                                  R$ {(med.valor_total || (med.quantidade * med.preco) || 0).toFixed(2)}
                                 </span>
                               </div>
                             </div>

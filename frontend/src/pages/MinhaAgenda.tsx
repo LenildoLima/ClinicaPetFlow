@@ -104,6 +104,30 @@ export default function MinhaAgenda() {
 
   useEffect(() => {
     fetchConsultas();
+
+    if (!user) return;
+
+    // Escutar mudanças em tempo real para a agenda do veterinário
+    const canal = supabase
+      .channel(`agenda-vet-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'consultas',
+          filter: `veterinario_id=eq.${user.id}`
+        },
+        () => {
+          console.log('Realtime: Agenda do veterinário atualizada');
+          fetchConsultas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
   }, [user, filterType, selectedDate]);
 
   return (
