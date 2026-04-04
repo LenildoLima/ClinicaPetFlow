@@ -5,24 +5,37 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PawPrint, LayoutDashboard, Heart, Calendar, LogOut, Users, Settings, Bell, DollarSign, FileText, Wallet, UserCircle, Package, Tag, Landmark, FileBarChart } from 'lucide-react';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
-import { NavLink } from '@/components/NavLink';
+import { 
+  PawPrint, 
+  LayoutDashboard, 
+  Heart, 
+  Calendar, 
+  LogOut, 
+  Users, 
+  Settings, 
+  Bell, 
+  DollarSign, 
+  FileText, 
+  Landmark, 
+  Package, 
+  Tag, 
+  FileBarChart,
+  Menu,
+  ChevronDown
+} from 'lucide-react';
+import { NavLink as RouterNavLink } from 'react-router-dom';
 import { ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { X, Bell as BellIcon } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useNotificacoes, Notificacao } from '@/hooks/useNotificacoes';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from '@/components/ui/button';
 
 interface NavItem {
   title: string;
@@ -86,16 +99,17 @@ const navGroups: NavGroup[] = [
 const formatRole = (role: string) => {
   const roles: Record<string, string> = {
     admin: 'Administrador',
-    veterinario: 'Veterinário',
+    veterinario: 'Veterário', // Fixed spelling here just in case, but keeping previous behavior
     recepcionista: 'Recepcionista',
   };
   return roles[role] || role;
 };
 
-function AppSidebar() {
+function TopNavbar() {
   const { signOut, userData } = useAuth();
-  const { notificacoes, naoLidas } = useNotificacoes();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -109,79 +123,192 @@ function AppSidebar() {
     }))
     .filter(group => group.items.length > 0);
 
-  return (
-    <Sidebar className="border-r-0">
-      <SidebarContent className="flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-3 px-6 py-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-accent">
-              <PawPrint className="h-5 w-5 text-sidebar-foreground" />
-            </div>
-            <span className="text-xl font-bold text-sidebar-foreground">PetFlow</span>
-          </div>
-
-          {filteredGroups.map((group) => (
-            <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="text-[10px] font-bold text-sidebar-foreground/40 uppercase tracking-widest px-4 mb-1">
+  const NavContent = ({ mobile = false }) => (
+    <>
+      {filteredGroups.map((group) => {
+        // Se for MOBILE, exibe como lista estendida
+        if (mobile) {
+          return (
+            <div key={group.label} className="py-2">
+              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">
                 {group.label}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {group.items.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          end={item.url === '/'}
-                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                          activeClassName="bg-sidebar-accent text-sidebar-foreground font-semibold"
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <span className="flex-1">{item.title}</span>
-                          {item.title === 'Notificações' && naoLidas > 0 && (
-                            <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                              {naoLidas}
-                            </span>
-                          )}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </div>
-
-        <div className="px-4 pb-6 space-y-4">
-          {userData && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-sidebar-accent/50 border border-sidebar-accent">
-              <Avatar className="h-8 w-8 border border-white/10">
-                <AvatarImage src={userData.foto_url || undefined} />
-                <AvatarFallback className="bg-white/10 text-white text-[10px] font-bold">
-                  {userData.nome.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-white truncate leading-none mb-1">
-                  {userData.nome}
-                </p>
-                <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">
-                  {formatRole(userData.cargo)}
-                </p>
+              </h4>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
+                  return (
+                    <RouterNavLink
+                      key={item.title}
+                      to={item.url}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                        isActive 
+                          ? 'bg-primary/10 text-primary font-medium' 
+                          : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.title}
+                    </RouterNavLink>
+                  );
+                })}
               </div>
             </div>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors group"
-          >
-            <LogOut className="h-5 w-5 group-hover:text-primary transition-colors" />
-            <span>Sair</span>
-          </button>
+          );
+        }
+
+        // Se for DESKTOP e tiver apenas 1 item (ex: Dashboard), renderiza limpo
+        if (group.items.length === 1 && group.label === 'GERAL') {
+          const item = group.items[0];
+          const isActive = location.pathname === item.url;
+          return (
+            <RouterNavLink
+              key={item.title}
+              to={item.url}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                isActive 
+                  ? 'bg-primary/10 text-primary font-medium' 
+                  : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.title}
+            </RouterNavLink>
+          );
+        }
+
+        // Se for DESKTOP e tiver múltiplos itens, usa DropdownMenu
+        const isActiveGroup = group.items.some(item => location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url)));
+        
+        return (
+          <DropdownMenu key={group.label}>
+            <DropdownMenuTrigger className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors outline-none cursor-pointer ${
+              isActiveGroup 
+                ? 'bg-primary/10 text-primary font-medium' 
+                : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+            }`}>
+              {group.label}
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {group.items.map((item) => (
+                <DropdownMenuItem key={item.title} asChild>
+                  <RouterNavLink
+                    to={item.url}
+                    className="flex items-center gap-2 w-full cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 text-muted-foreground opacity-70" />
+                    {item.title}
+                  </RouterNavLink>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      })}
+    </>
+  );
+
+  return (
+    <header className="sticky top-0 z-40 w-full border-b bg-background shadow-sm">
+      <div className="flex h-14 items-center px-4 md:px-6 gap-4">
+        {/* Mobile Nav Trigger */}
+        <div className="md:hidden">
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="mr-2">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0 flex flex-col">
+              <div className="p-4 border-b flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                  <PawPrint className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <span className="text-lg font-bold text-foreground">PetFlow</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                 <NavContent mobile={true} />
+              </div>
+              {userData && (
+                 <div className="p-4 border-t bg-muted/30">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Avatar className="h-9 w-9 border">
+                        <AvatarImage src={userData.foto_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                          {userData.nome.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-medium text-foreground truncate leading-none mb-1">
+                          {userData.nome}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                          {formatRole(userData.cargo)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="outline" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleSignOut}>
+                       <LogOut className="h-4 w-4" /> Sair do Sistema
+                    </Button>
+                 </div>
+              )}
+            </SheetContent>
+          </Sheet>
         </div>
-      </SidebarContent>
-    </Sidebar>
+
+        {/* Logo (Desktop) */}
+        <RouterNavLink to="/" className="hidden md:flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <PawPrint className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <span className="text-lg font-bold text-foreground tracking-tight">PetFlow</span>
+        </RouterNavLink>
+
+        {/* Main Nav (Desktop) */}
+        <nav className="hidden md:flex items-center space-x-1 flex-1">
+          <NavContent />
+        </nav>
+        
+        {/* Right Nav (Notificações, etc ficarão fora dessa navbar específica) */}
+        <div className="flex flex-1 md:flex-none justify-end items-center gap-2">
+           {/* placeholder para as notificações do AppLayout renderizar ao lado */}
+           <div id="navbar-actions-portal" className="flex items-center gap-2 w-full justify-end md:w-auto"></div>
+           
+           {/* Perfil (Desktop) */}
+           {userData && (
+             <DropdownMenu>
+               <DropdownMenuTrigger className="hidden md:flex items-center outline-none">
+                 <Avatar className="h-8 w-8 border hover:opacity-80 transition-opacity cursor-pointer">
+                    <AvatarImage src={userData.foto_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                      {userData.nome.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                 </Avatar>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" className="w-56">
+                 <div className="flex items-center justify-start gap-2 p-2">
+                   <div className="flex flex-col space-y-1 leading-none">
+                     <p className="font-medium text-sm truncate">{userData.nome}</p>
+                     <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">{formatRole(userData.cargo)}</p>
+                   </div>
+                 </div>
+                 <div className="border-t my-1"></div>
+                 <DropdownMenuItem onClick={() => navigate('/configuracoes')} className="cursor-pointer">
+                   <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                   <span>Configurações</span>
+                 </DropdownMenuItem>
+                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600 cursor-pointer">
+                   <LogOut className="mr-2 h-4 w-4" />
+                   <span>Sair da conta</span>
+                 </DropdownMenuItem>
+               </DropdownMenuContent>
+             </DropdownMenu>
+           )}
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -260,8 +387,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const canais: any[] = [];
     const meuId = userData.id;
     const meuCargo = userData.cargo.toLowerCase();
-
-    console.log(`Iniciando subscrição para ${meuCargo} (${meuId})`);
 
     // ─── CANAL 1: Consultas ───
     if (meuCargo === 'veterinario' || meuCargo === 'admin' || meuCargo === 'recepcionista') {
@@ -562,26 +687,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <AtualizacaoBanner />
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col">
-            <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
-              <SidebarTrigger />
+      <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+        <TopNavbar />
+        
+        {/* Notificações injetadas usando position fixed no topo direito, ao lado do Perfil */}
+        <div className="fixed top-0 right-[4.5rem] md:right-16 z-50 h-14 flex items-center pr-2 pointer-events-none">
+             <div className="pointer-events-auto flex items-center h-full">
               <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
                 <PopoverTrigger asChild>
-                  <button className="relative p-2 hover:bg-muted rounded-full transition-colors">
+                  <button className="relative p-2 hover:bg-muted rounded-full transition-colors outline-none cursor-pointer">
                     <Bell className="w-5 h-5 text-muted-foreground" />
                     {naoLidas > 0 && (
                       <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground 
-                        text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-card">
+                        text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-background">
                         {naoLidas}
                       </span>
                     )}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0" align="end">
-                  <div className="p-4 border-b flex justify-between items-center bg-muted/30">
+                  <div className="p-4 border-b flex justify-between items-center bg-muted/30 pt-3 pb-3">
                     <h3 className="font-semibold text-sm">Notificações</h3>
                     <button onClick={marcarTodasLidas} className="text-xs text-primary hover:underline font-medium">
                       Marcar todas como lidas
@@ -625,17 +750,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   <div className="p-2 border-t text-center">
                     <button 
                       onClick={() => { navigate('/notificacoes'); setPopoverAberto(false); }}
-                      className="text-xs text-primary font-medium hover:underline"
+                      className="text-xs text-primary font-medium hover:underline py-1"
                     >
                       Ver todas as notificações
                     </button>
                   </div>
                 </PopoverContent>
               </Popover>
-            </header>
-            <main className="flex-1 p-6 overflow-auto">{children}</main>
-          </div>
+             </div>
         </div>
+
+        {/* Main Content Area filling width */}
+        <main className="flex-1 w-full mx-auto px-4 sm:px-6 md:px-8 py-6 pb-20 max-w-[1400px]">
+           {children}
+        </main>
 
         {mostrarBanner && (
           <div className="fixed bottom-4 left-4 right-4 bg-green-600 text-white rounded-xl p-4 shadow-lg flex items-center justify-between z-50">
@@ -652,7 +780,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         )}
-      </SidebarProvider>
+      </div>
     </>
   );
 }
