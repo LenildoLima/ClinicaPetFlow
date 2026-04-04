@@ -9,11 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Filter, DollarSign, Clock, Calendar, CheckCircle2, ChevronDown, Trash2, Eye, Receipt, ArrowRight } from 'lucide-react';
+import { Plus, Search, Filter, DollarSign, Clock, Calendar, CheckCircle2, ChevronDown, Trash2, Eye, Receipt, ArrowRight, UserPlus } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRef } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -114,7 +117,29 @@ export default function Financeiro() {
   });
   const [items, setItems] = useState<FinanceiroItem[]>([{ descricao: '', quantidade: 1, valor_unitario: 0, valor_total: 0 }]);
   const [servicos, setServicos] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<any[]>([]);
   const [tutorConsultas, setTutorConsultas] = useState<any[]>([]);
+  const [isTutorSearchOpen, setIsTutorSearchOpen] = useState(false);
+  const [tutorSearchTerm, setTutorSearchTerm] = useState('');
+  
+  // Refs para navegação por teclado
+  const descriptionRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const unitPriceRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const discountRef = useRef<HTMLInputElement>(null);
+  
+  // Estados para Cadastro Rápido de Tutor
+  const [isQuickTutorOpen, setIsQuickTutorOpen] = useState(false);
+  const [quickTutor, setQuickTutor] = useState({ nome: '', telefone: '' });
+  const [isSavingTutor, setIsSavingTutor] = useState(false);
+
+  const formatPhone = (value: string) => {
+    const phone = value.replace(/\D/g, '');
+    if (phone.length <= 10) {
+      return phone.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2').replace(/(-\d{4})\d+?$/, '$1');
+    }
+    return phone.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{4})\d+?$/, '$1');
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -136,6 +161,10 @@ export default function Financeiro() {
 
     const { data: servs } = await supabase.from('servicos').select('*').order('nome');
     setServicos(servs || []);
+
+    const { data: prods } = await supabase.from('estoque_produtos').select('*').eq('ativo', true).order('nome');
+    setProdutos(prods || []);
+
     setLoading(false);
   };
 
@@ -184,6 +213,14 @@ export default function Financeiro() {
 
   const handleAddItem = () => {
     setItems([...items, { descricao: '', quantidade: 1, valor_unitario: 0, valor_total: 0 }]);
+    // Pequeno delay para focar no novo campo após o render
+    setTimeout(() => {
+      const lastIdx = items.length;
+      if (descriptionRefs.current[lastIdx]) {
+        descriptionRefs.current[lastIdx]?.click();
+        descriptionRefs.current[lastIdx]?.focus();
+      }
+    }, 50);
   };
 
   const updateItem = (index: number, field: keyof FinanceiroItem, value: any) => {
@@ -257,6 +294,33 @@ export default function Financeiro() {
       consulta_id: ''
     });
     setItems([{ descricao: '', quantidade: 1, valor_unitario: 0, valor_total: 0 }]);
+  };
+
+  const handleSaveQuickTutor = async () => {
+    if (!quickTutor.nome || !quickTutor.telefone) {
+      toast({ title: 'Atenção', description: 'Preencha nome e telefone', variant: 'destructive' });
+      return;
+    }
+    setIsSavingTutor(true);
+    const { data, error } = await supabase
+      .from('tutores')
+      .insert([{
+        nome: quickTutor.nome,
+        telefone: quickTutor.telefone
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Tutor cadastrado!' });
+      setSelectedTutor(data);
+      setTutorInput(data.nome);
+      setQuickTutor({ nome: '', telefone: '' });
+      setIsQuickTutorOpen(false);
+    }
+    setIsSavingTutor(false);
   };
 
   const handleRegistrarPagamento = async () => {
@@ -403,26 +467,110 @@ export default function Financeiro() {
             <div className="space-y-6 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 relative">
-                  <Label>Tutor</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar tutor..." className="pl-9" value={tutorInput} onChange={e => setTutorInput(e.target.value)} />
+                  <div className="flex items-center justify-between">
+                    <Label>Tutor</Label>
+                    {!selectedTutor && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[10px] uppercase font-bold text-primary gap-1"
+                        onClick={() => setIsQuickTutorOpen(!isQuickTutorOpen)}
+                      >
+                        <UserPlus className="h-3 w-3" /> {isQuickTutorOpen ? 'Cancelar' : 'Novo'}
+                      </Button>
+                    )}
                   </div>
-                  {tutoresFound.length > 0 && !selectedTutor && (
-                    <div className="absolute z-10 w-full bg-white border rounded shadow-lg mt-1 overflow-hidden">
-                      {tutoresFound.map(t => (
-                        <div key={t.id} className="p-2 hover:bg-muted cursor-pointer text-sm" onClick={() => { setSelectedTutor(t); setTutorInput(t.nome); }}>
-                          {t.nome} - {t.telefone}
+
+                  {isQuickTutorOpen && !selectedTutor ? (
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md space-y-3 animate-in fade-in slide-in-from-top-1">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold">Nome do Novo Tutor</Label>
+                        <Input 
+                          placeholder="Nome completo..." 
+                          className="h-8 text-sm"
+                          value={quickTutor.nome}
+                          onChange={e => setQuickTutor({...quickTutor, nome: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold">Telefone</Label>
+                        <Input 
+                          placeholder="(00) 00000-0000" 
+                          className="h-8 text-sm"
+                          value={quickTutor.telefone}
+                          onChange={e => setQuickTutor({...quickTutor, telefone: formatPhone(e.target.value)})}
+                          maxLength={15}
+                        />
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="w-full h-8 text-xs bg-primary hover:bg-primary/90" 
+                        onClick={handleSaveQuickTutor}
+                        disabled={isSavingTutor}
+                      >
+                        {isSavingTutor ? 'Salvando...' : 'Cadastrar e Selecionar'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Popover open={isTutorSearchOpen} onOpenChange={setIsTutorSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Buscar tutor (Seta para baixo para ver resultados)..." 
+                            className="pl-9 h-10" 
+                            value={tutorSearchTerm || (selectedTutor?.nome || '')} 
+                            onChange={e => {
+                              setTutorSearchTerm(e.target.value);
+                              setTutorInput(e.target.value);
+                              setIsTutorSearchOpen(true);
+                            }} 
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && selectedTutor) {
+                                descriptionRefs.current[0]?.focus();
+                              }
+                            }}
+                          />
                         </div>
-                      ))}
-                    </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[450px] p-0" align="start">
+                        <Command>
+                          <CommandList>
+                            <CommandEmpty>Nenhum tutor encontrado.</CommandEmpty>
+                            <CommandGroup heading="Tutores Encontrados">
+                              {tutoresFound.map(t => (
+                                <CommandItem
+                                  key={t.id}
+                                  value={t.nome}
+                                  onSelect={() => {
+                                    setSelectedTutor(t);
+                                    setTutorSearchTerm(t.nome);
+                                    setTutorInput(t.nome);
+                                    setTutoresFound([]);
+                                    setIsTutorSearchOpen(false);
+                                    // Focar no primeiro campo de descrição para agilizar
+                                    setTimeout(() => descriptionRefs.current[0]?.focus(), 100);
+                                  }}
+                                  className="text-sm py-2 cursor-pointer"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold">{t.nome}</span>
+                                    <span className="text-xs text-muted-foreground">{t.telefone}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   )}
-                  {selectedTutor && (
-                    <div className="flex items-center justify-between bg-primary/5 p-2 rounded border border-primary/20 mt-2">
-                       <span className="text-sm font-medium">{selectedTutor.nome}</span>
-                       <Button variant="ghost" size="sm" onClick={() => setSelectedTutor(null)}>Alterar</Button>
-                    </div>
-                  )}
+                      {selectedTutor && (
+                        <div className="flex items-center justify-between bg-primary/5 p-2 rounded border border-primary/20 mt-2">
+                           <span className="text-sm font-medium">{selectedTutor.nome}</span>
+                           <Button variant="ghost" size="sm" onClick={() => { setSelectedTutor(null); setTutorInput(''); setTutorSearchTerm(''); }}>Alterar</Button>
+                        </div>
+                      )}
                 </div>
                 <div className="space-y-2">
                   <Label>Vincular Consulta (Opcional)</Label>
@@ -445,42 +593,141 @@ export default function Financeiro() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Itens da Cobrança</h3>
-                  <div className="flex gap-2">
-                    <Select onValueChange={(val) => {
-                      const s = servicos.find(s => s.id === val);
-                      if (s) {
-                        setItems([...items, { descricao: s.nome, quantidade: 1, valor_unitario: s.preco, valor_total: s.preco }]);
-                      }
-                    }}>
-                      <SelectTrigger className="w-[200px] h-8 text-xs">
-                        <SelectValue placeholder="Adicionar do Catálogo..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {servicos.map(s => <SelectItem key={s.id} value={s.id}>{s.nome} ({formatCurrency(s.preco)})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleAddItem}><Plus className="h-3 w-3 mr-1" /> Item Personalizado</Button>
-                  </div>
+                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={handleAddItem}><Plus className="h-3 w-3 mr-1" /> Item Personalizado (Novo)</Button>
                 </div>
                 <Table className="border rounded-lg">
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="w-[40%]">Descrição</TableHead>
-                      <TableHead>Qtd</TableHead>
-                      <TableHead>Valor Unit.</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-[45%]">Descrição</TableHead>
+                      <TableHead className="w-[10%] text-center">Qtd</TableHead>
+                      <TableHead className="w-[20%] text-right">Valor Unit.</TableHead>
+                      <TableHead className="w-[20%] text-right font-bold">Total</TableHead>
+                      <TableHead className="w-[5%]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell><Input value={item.descricao} onChange={e => updateItem(idx, 'descricao', e.target.value)} placeholder="Item ou serviço..." className="h-8" /></TableCell>
-                        <TableCell><Input type="number" value={item.quantidade} onChange={e => updateItem(idx, 'quantidade', e.target.value)} className="h-8" /></TableCell>
-                        <TableCell><Input type="number" value={item.valor_unitario} onChange={e => updateItem(idx, 'valor_unitario', e.target.value)} placeholder="0.00" className="h-8" /></TableCell>
-                        <TableCell className="font-bold text-sm">{formatCurrency(item.valor_total)}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))} disabled={items.length === 1} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                      <TableRow key={idx} className="group hover:bg-muted/30 transition-colors">
+                        <TableCell className="p-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground opacity-50" />
+                                <Input
+                                  ref={(el) => (descriptionRefs.current[idx] = el)}
+                                  value={item.descricao}
+                                  onChange={(e) => updateItem(idx, 'descricao', e.target.value)}
+                                  placeholder="Busque no catálogo ou digite..."
+                                  className="h-9 pl-7 bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary transition-all"
+                                />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Filtrar catálogo..." className="h-8" />
+                                <CommandList className="max-h-[300px]">
+                                  <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                                  <CommandGroup heading="Serviços e Vacinas">
+                                    {servicos.map((s) => (
+                                      <CommandItem
+                                        key={`serv-${idx}-${s.id}`}
+                                        value={s.nome}
+                                        onSelect={() => {
+                                          updateItem(idx, 'descricao', s.nome);
+                                          updateItem(idx, 'valor_unitario', s.preco);
+                                          // Focar no campo de quantidade após seleção
+                                          setTimeout(() => quantityRefs.current[idx]?.focus(), 50);
+                                        }}
+                                        className="text-xs flex justify-between items-center py-2"
+                                      >
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{s.nome}</span>
+                                          <span className="text-[10px] text-muted-foreground uppercase">Serviço</span>
+                                        </div>
+                                        <span className="font-bold text-primary">{formatCurrency(s.preco)}</span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                  <CommandGroup heading="Produtos e Estoque">
+                                    {produtos.map((p) => (
+                                      <CommandItem
+                                        key={`prod-${idx}-${p.id}`}
+                                        value={p.nome}
+                                        onSelect={() => {
+                                          updateItem(idx, 'descricao', `${p.nome} (${p.marca || ''})`);
+                                          updateItem(idx, 'valor_unitario', p.preco_venda);
+                                          // Focar no campo de quantidade após seleção
+                                          setTimeout(() => quantityRefs.current[idx]?.focus(), 50);
+                                        }}
+                                        className="text-xs flex justify-between items-center py-2"
+                                      >
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{p.nome}</span>
+                                          <span className="text-[10px] text-muted-foreground uppercase">{p.unidade} {p.marca ? `— ${p.marca}` : ''}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                          <span className="font-bold text-green-600">{formatCurrency(p.preco_venda)}</span>
+                                          <span className="text-[9px] text-muted-foreground">Estoque: {p.estoque_atual}</span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </TableCell>
+                        <TableCell className="p-2">
+                          <Input
+                            ref={(el) => (quantityRefs.current[idx] = el)}
+                            type="number"
+                            value={item.quantidade}
+                            onChange={(e) => updateItem(idx, 'quantidade', Number(e.target.value))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                unitPriceRefs.current[idx]?.focus();
+                              }
+                            }}
+                            className="h-9 text-center bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary"
+                          />
+                        </TableCell>
+                        <TableCell className="p-2">
+                          <Input
+                            ref={(el) => (unitPriceRefs.current[idx] = el)}
+                            type="number"
+                            step="0.01"
+                            value={item.valor_unitario}
+                            onChange={(e) => updateItem(idx, 'valor_unitario', Number(e.target.value))}
+                            className="h-9 text-right bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary"
+                            placeholder="0,00"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Tab' && idx === items.length - 1) {
+                                e.preventDefault();
+                                handleAddItem();
+                              } else if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (idx === items.length - 1) {
+                                  discountRef.current?.focus();
+                                } else {
+                                  descriptionRefs.current[idx + 1]?.focus();
+                                }
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="p-2 text-right font-bold text-sm">
+                          {formatCurrency(item.valor_total)}
+                        </TableCell>
+                        <TableCell className="p-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setItems(items.filter((_, i) => i !== idx))} 
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -492,7 +739,12 @@ export default function Financeiro() {
                 <div className="space-y-4">
                    <div className="space-y-1">
                      <Label>Desconto (R$)</Label>
-                     <Input type="number" value={newCobranca.desconto} onChange={e => setNewCobranca({...newCobranca, desconto: parseFloat(e.target.value) || 0})} />
+                     <Input 
+                      ref={discountRef}
+                      type="number" 
+                      value={newCobranca.desconto} 
+                      onChange={e => setNewCobranca({...newCobranca, desconto: parseFloat(e.target.value) || 0})} 
+                    />
                    </div>
                    <div className="space-y-1">
                      <Label>Vencimento</Label>

@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificacoesProvider } from "@/contexts/NotificacoesContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleRoute from "@/components/RoleRoute";
 import AppLayout from "@/components/AppLayout";
@@ -22,6 +23,7 @@ import Estoque from "./pages/Estoque";
 import Relatorios from "./pages/Relatorios";
 import Servicos from "./pages/Servicos";
 import Configuracoes from "./pages/Configuracoes";
+import Notificacoes from "./pages/Notificacoes";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -32,7 +34,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <AuthProvider>
-        <BrowserRouter>
+        <NotificacoesProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
 
@@ -122,10 +125,16 @@ const App = () => (
                 <AppLayout><Configuracoes /></AppLayout>
               </ProtectedRoute>
             } />
+            <Route path="/notificacoes" element={
+              <ProtectedRoute>
+                <AppLayout><Notificacoes /></AppLayout>
+              </ProtectedRoute>
+            } />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+          </BrowserRouter>
+        </NotificacoesProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
