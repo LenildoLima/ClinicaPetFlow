@@ -291,64 +291,155 @@ export default function ProntuarioDetalhe() {
               <DialogTrigger asChild>
                 <Button>Editar</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Editar Prontuário</DialogTitle></DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <Label>Peso (kg)</Label>
-                      <Input value={editForm.peso} onChange={e => setEditForm({ ...editForm, peso: e.target.value })} />
+              <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
+                <DialogHeader className="bg-primary p-6">
+                  <DialogTitle className="flex items-center gap-2 text-white text-xl">
+                    <FileText className="w-6 h-6" />
+                    Editar Prontuário
+                  </DialogTitle>
+                  <p className="text-primary-foreground/80 text-sm mt-1">
+                    Preencha ou modifique as informações clínicas abaixo para manter o prontuário atualizado.
+                  </p>
+                </DialogHeader>
+                <div className="max-h-[75vh] overflow-y-auto">
+                  <div className="p-6 space-y-6 bg-slate-50/50">
+                    
+                    {/* SINAIS VITAIS */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                      <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Sinais Vitais</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">Peso (kg)</Label>
+                          <Input 
+                            value={editForm.peso || ''} 
+                            onChange={e => setEditForm({ ...editForm, peso: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">Temp. (°C)</Label>
+                          <Input 
+                            value={editForm.temperatura || ''} 
+                            onChange={e => setEditForm({ ...editForm, temperatura: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">FC (bpm)</Label>
+                          <Input 
+                            value={editForm.frequencia_cardiaca || ''} 
+                            onChange={e => setEditForm({ ...editForm, frequencia_cardiaca: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">FR (mpm)</Label>
+                          <Input 
+                            value={editForm.frequencia_respiratoria || ''} 
+                            onChange={e => setEditForm({ ...editForm, frequencia_respiratoria: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label>Temp. (°C)</Label>
-                      <Input value={editForm.temperatura} onChange={e => setEditForm({ ...editForm, temperatura: e.target.value })} />
+
+                    {/* HISTÓRICO CLÍNICO E EXAME FÍSICO */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                      <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Histórico e Exame</h3>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Queixa Principal</Label>
+                        <Input 
+                          value={editForm.queixa_principal || ''} 
+                          onChange={e => setEditForm({ ...editForm, queixa_principal: e.target.value })} 
+                          className="bg-slate-50"
+                        />
+                      </div>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Anamnese</Label>
+                        <Textarea 
+                          value={editForm.anamnese || ''} 
+                          onChange={e => setEditForm({ ...editForm, anamnese: e.target.value })} 
+                          rows={4} 
+                          className="bg-slate-50"
+                        />
+                      </div>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Exame Físico</Label>
+                        <Textarea 
+                          value={editForm.exame_fisico || ''} 
+                          onChange={e => setEditForm({ ...editForm, exame_fisico: e.target.value })} 
+                          rows={4} 
+                          className="bg-slate-50"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label>FC (bpm)</Label>
-                      <Input value={editForm.frequencia_cardiaca} onChange={e => setEditForm({ ...editForm, frequencia_cardiaca: e.target.value })} />
+
+                    {/* DIAGNÓSTICO */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                      <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Diagnóstico</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">Hipótese Diagnóstica</Label>
+                          <Input 
+                            value={editForm.hipotese_diagnostica || ''} 
+                            onChange={e => setEditForm({ ...editForm, hipotese_diagnostica: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                        <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                          <Label className="font-semibold">Diagnóstico Definitivo</Label>
+                          <Input 
+                            value={editForm.diagnostico || ''} 
+                            onChange={e => setEditForm({ ...editForm, diagnostico: e.target.value })} 
+                            className="bg-slate-50"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label>FR (mpm)</Label>
-                      <Input value={editForm.frequencia_respiratoria} onChange={e => setEditForm({ ...editForm, frequencia_respiratoria: e.target.value })} />
+
+                    {/* CONDUTA */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                      <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Conduta e Prescrições</h3>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Tratamento Prescrito (Resumo)</Label>
+                        <Textarea 
+                          value={editForm.tratamento || ''} 
+                          onChange={e => setEditForm({ ...editForm, tratamento: e.target.value })} 
+                          rows={3} 
+                          className="bg-slate-50"
+                        />
+                      </div>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Orientações Gerais ao Tutor</Label>
+                        <Textarea 
+                          value={editForm.orientacoes || ''} 
+                          onChange={e => setEditForm({ ...editForm, orientacoes: e.target.value })} 
+                          rows={3} 
+                          className="bg-slate-50"
+                        />
+                      </div>
+                      <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                        <Label className="font-semibold">Sugerir Retorno em</Label>
+                        <Input 
+                          type="date" 
+                          value={editForm.retorno_em || ''} 
+                          onChange={e => setEditForm({ ...editForm, retorno_em: e.target.value })} 
+                          className="bg-slate-50"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Queixa Principal</Label>
-                    <Input value={editForm.queixa_principal} onChange={e => setEditForm({ ...editForm, queixa_principal: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Anamnese</Label>
-                    <Textarea value={editForm.anamnese} onChange={e => setEditForm({ ...editForm, anamnese: e.target.value })} rows={4} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Exame Físico</Label>
-                    <Textarea value={editForm.exame_fisico} onChange={e => setEditForm({ ...editForm, exame_fisico: e.target.value })} rows={4} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label>Hipótese</Label>
-                      <Input value={editForm.hipotese_diagnostica} onChange={e => setEditForm({ ...editForm, hipotese_diagnostica: e.target.value })} />
+
+                    <div className="pt-2">
+                      <Button 
+                        onClick={handleUpdateProntuario} 
+                        className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all" 
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? 'Salvando...' : 'Salvar Prontuário'}
+                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      <Label>Diagnóstico</Label>
-                      <Input value={editForm.diagnostico} onChange={e => setEditForm({ ...editForm, diagnostico: e.target.value })} />
-                    </div>
+
                   </div>
-                  <div className="space-y-1">
-                    <Label>Tratamento</Label>
-                    <Textarea value={editForm.tratamento} onChange={e => setEditForm({ ...editForm, tratamento: e.target.value })} rows={3} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Orientações</Label>
-                    <Textarea value={editForm.orientacoes} onChange={e => setEditForm({ ...editForm, orientacoes: e.target.value })} rows={3} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Retorno em</Label>
-                    <Input type="date" value={editForm.retorno_em} onChange={e => setEditForm({ ...editForm, retorno_em: e.target.value })} />
-                  </div>
-                  <Button onClick={handleUpdateProntuario} className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-                  </Button>
                 </div>
               </DialogContent>
             </Dialog>

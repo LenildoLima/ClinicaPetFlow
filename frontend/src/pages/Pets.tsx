@@ -184,91 +184,137 @@ export default function Pets() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Novo Pet</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Pet' : 'Cadastrar Pet'}</DialogTitle>
+          <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+            <DialogHeader className="bg-primary p-6">
+              <DialogTitle className="flex items-center gap-2 text-white text-xl">
+                <Heart className="w-6 h-6" />
+                {editingId ? 'Editar Pet' : 'Cadastrar Pet'}
+              </DialogTitle>
+              <p className="text-primary-foreground/80 text-sm mt-1">
+                Preencha os dados abaixo para manter a ficha do animalzinho atualizada.
+              </p>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="space-y-1">
-                <Label>Nome</Label>
-                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label>Espécie</Label>
-                  <Select value={form.especie} onValueChange={(v) => setForm({ ...form, especie: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cao">Cão/Cachorro</SelectItem>
-                      <SelectItem value="gato">Gato</SelectItem>
-                      <SelectItem value="passaro">Pássaro</SelectItem>
-                      <SelectItem value="roedor">Roedor</SelectItem>
-                      <SelectItem value="reptil">Réptil</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Raça</Label>
-                  <Input value={form.raca} onChange={(e) => setForm({ ...form, raca: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label>Sexo</Label>
-                  <Select value={form.sexo} onValueChange={(v) => setForm({ ...form, sexo: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="macho">Macho</SelectItem>
-                      <SelectItem value="femea">Fêmea</SelectItem>
-                      <SelectItem value="nao_informado">Não Informado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Data de Nascimento</Label>
-                  <Input type="date" value={form.data_nascimento} onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="castrado"
-                  checked={form.castrado}
-                  onCheckedChange={(v) => setForm({ ...form, castrado: v === true })}
-                />
-                <Label htmlFor="castrado">Castrado</Label>
-              </div>
-              <div className="space-y-1">
-                <Label>Tutor</Label>
-                {editingId ? (
-                   <Input value={pets.find(p => p.id === editingId)?.tutores?.nome || '—'} disabled />
-                ) : (
-                  <>
-                    <Input
-                      placeholder="Buscar tutor..."
-                      value={tutorSearch}
-                      onChange={(e) => setTutorSearch(e.target.value)}
-                      className="mb-2"
+            <div className="max-h-[75vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-slate-50/50">
+                
+                {/* DADOS PRINCIPAIS DO PET */}
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Identificação do Pet</h3>
+                  
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Nome</Label>
+                    <Input 
+                      value={form.nome} 
+                      onChange={(e) => setForm({ ...form, nome: e.target.value })} 
+                      className="bg-slate-50"
+                      required 
                     />
-                    <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o tutor" /></SelectTrigger>
-                      <SelectContent>
-                        {tutores.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label>Observações</Label>
-                <Input value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
-              </div>
-              <Button type="submit" className="w-full mt-4" disabled={loading}>
-                {editingId ? 'Salvar Alterações' : 'Salvar'}
-              </Button>
-            </form>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Espécie</Label>
+                      <Select value={form.especie} onValueChange={(v) => setForm({ ...form, especie: v })}>
+                        <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cao">Cão/Cachorro</SelectItem>
+                          <SelectItem value="gato">Gato</SelectItem>
+                          <SelectItem value="passaro">Pássaro</SelectItem>
+                          <SelectItem value="roedor">Roedor</SelectItem>
+                          <SelectItem value="reptil">Réptil</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Raça</Label>
+                      <Input 
+                        value={form.raca} 
+                        onChange={(e) => setForm({ ...form, raca: e.target.value })} 
+                        className="bg-slate-50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Sexo</Label>
+                      <Select value={form.sexo} onValueChange={(v) => setForm({ ...form, sexo: v })}>
+                        <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="macho">Macho</SelectItem>
+                          <SelectItem value="femea">Fêmea</SelectItem>
+                          <SelectItem value="nao_informado">Não Informado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Data de Nascimento</Label>
+                      <Input 
+                        type="date" 
+                        value={form.data_nascimento} 
+                        onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })} 
+                        className="bg-slate-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox
+                      id="castrado"
+                      checked={form.castrado}
+                      onCheckedChange={(v) => setForm({ ...form, castrado: v === true })}
+                    />
+                    <Label htmlFor="castrado" className="font-medium cursor-pointer">Pet Castrado?</Label>
+                  </div>
+                </div>
+
+                {/* VINCULAÇÃO E OBSERVAÇÕES */}
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Tutor e Histórico</h3>
+                  
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Tutor Responsável</Label>
+                    {editingId ? (
+                       <Input value={pets.find(p => p.id === editingId)?.tutores?.nome || '—'} className="bg-slate-50" disabled />
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="Buscar tutor por nome..."
+                          value={tutorSearch}
+                          onChange={(e) => setTutorSearch(e.target.value)}
+                          className="mb-2 bg-slate-50"
+                        />
+                        <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v })}>
+                          <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione o tutor da lista" /></SelectTrigger>
+                          <SelectContent>
+                            {tutores.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Observações Iniciais</Label>
+                    <Input 
+                      value={form.observacoes} 
+                      onChange={(e) => setForm({ ...form, observacoes: e.target.value })} 
+                      placeholder="Alguma particularidade?"
+                      className="bg-slate-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button type="submit" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all" disabled={loading}>
+                    {editingId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

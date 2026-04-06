@@ -191,56 +191,65 @@ export default function Servicos() {
 
       {/* Modal Criar/Editar Serviço */}
       <Dialog open={servicoModalOpen} onOpenChange={setServicoModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedServico ? "Editar Serviço" : "Novo Serviço"}</DialogTitle>
+        <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-primary p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <Tag className="w-6 h-6" />
+              {selectedServico ? "Editar Serviço" : "Novo Serviço"}
+            </DialogTitle>
+            <p className="text-primary-foreground/80 text-sm mt-1">
+              Preencha os detalhes do serviço oferecido.
+            </p>
           </DialogHeader>
-          <form onSubmit={handleSaveServico} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="servico-nome">Nome do Serviço</Label>
-              <Input id="servico-nome" name="nome" defaultValue={selectedServico?.nome || ""} required />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="servico-categoria">Categoria</Label>
-              <Select name="categoria" defaultValue={selectedServico?.categoria || "consulta"} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="consulta">Consulta</SelectItem>
-                  <SelectItem value="exame">Exame</SelectItem>
-                  <SelectItem value="cirurgia">Cirurgia</SelectItem>
-                  <SelectItem value="vacina">Vacina</SelectItem>
-                  <SelectItem value="medicamento">Medicamento</SelectItem>
-                  <SelectItem value="banho_tosa">Banho e Tosa</SelectItem>
-                  <SelectItem value="outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
+          <form onSubmit={handleSaveServico} className="p-6 space-y-6 bg-slate-50/50">
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label htmlFor="servico-nome" className="font-semibold">Nome do Serviço *</Label>
+                <Input className="bg-slate-50" id="servico-nome" name="nome" defaultValue={selectedServico?.nome || ""} required />
+              </div>
+              
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label htmlFor="servico-categoria" className="font-semibold">Categoria *</Label>
+                <Select name="categoria" defaultValue={selectedServico?.categoria || "consulta"} required>
+                  <SelectTrigger className="bg-slate-50">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consulta">Consulta</SelectItem>
+                    <SelectItem value="exame">Exame</SelectItem>
+                    <SelectItem value="cirurgia">Cirurgia</SelectItem>
+                    <SelectItem value="vacina">Vacina</SelectItem>
+                    <SelectItem value="medicamento">Medicamento</SelectItem>
+                    <SelectItem value="banho_tosa">Banho e Tosa</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label htmlFor="servico-preco" className="font-semibold">Preço (R$) *</Label>
+                <Input 
+                  className="bg-slate-50"
+                  id="servico-preco" 
+                  name="preco" 
+                  type="number" 
+                  step="0.01" 
+                  min="0"
+                  defaultValue={selectedServico?.preco || ""} 
+                  required 
+                />
+              </div>
+
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label htmlFor="servico-descricao" className="font-semibold">Descrição (Opcional)</Label>
+                <Input className="bg-slate-50" id="servico-descricao" name="descricao" defaultValue={selectedServico?.descricao || ""} />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="servico-preco">Preço (R$)</Label>
-              <Input 
-                id="servico-preco" 
-                name="preco" 
-                type="number" 
-                step="0.01" 
-                min="0"
-                defaultValue={selectedServico?.preco || ""} 
-                required 
-              />
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setServicoModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" className="h-12 rounded-xl shadow-md">Salvar</Button>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="servico-descricao">Descrição (Opcional)</Label>
-              <Input id="servico-descricao" name="descricao" defaultValue={selectedServico?.descricao || ""} />
-            </div>
-
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setServicoModalOpen(false)}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
-            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

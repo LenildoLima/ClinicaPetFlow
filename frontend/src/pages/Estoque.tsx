@@ -641,145 +641,187 @@ export default function Estoque() {
 
       {/* Product Modal */}
       <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{selectedProduct ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-primary p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <Package className="w-6 h-6" />
+              {selectedProduct ? 'Editar Produto' : 'Novo Produto'}
+            </DialogTitle>
+            <p className="text-primary-foreground/80 text-sm mt-1">
+              Preencha os dados do produto para manter o estoque organizado.
+            </p>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="col-span-2 flex justify-center mb-4">
-              <ImageUpload
-                value={productForm.foto_url}
-                onChange={(file) => setFotoFile(file)}
-                onRemove={() => {
-                  setFotoFile(null);
-                  setProductForm({ ...productForm, foto_url: '' });
-                }}
-                shape="square"
-                size="lg"
-              />
-            </div>
-            <div className="space-y-2 col-span-2 md:col-span-1">
-              <Label>Nome do Produto *</Label>
-              <Input value={productForm.nome} onChange={e => setProductForm({...productForm, nome: e.target.value})} />
-            </div>
-            <div className="space-y-2 col-span-2 md:col-span-1">
-              <Label>Categoria *</Label>
-              <Select value={productForm.categoria_id} onValueChange={val => setProductForm({...productForm, categoria_id: val})}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {categorias.filter(c => c.ativo).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Marca</Label>
-              <Input value={productForm.marca} onChange={e => setProductForm({...productForm, marca: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Unidade</Label>
-              <Select value={productForm.unidade} onValueChange={val => setProductForm({...productForm, unidade: val})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {unidades.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Preço de Custo</Label>
-              <Input type="number" step="0.01" value={productForm.preco_custo} onChange={e => setProductForm({...productForm, preco_custo: Number(e.target.value)})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Preço de Venda</Label>
-              <Input type="number" step="0.01" value={productForm.preco_venda} onChange={e => setProductForm({...productForm, preco_venda: Number(e.target.value)})} />
-            </div>
-            {!selectedProduct && (
-              <div className="space-y-2">
-                <Label>Estoque Inicial</Label>
-                <Input type="number" value={productForm.estoque_atual} onChange={e => setProductForm({...productForm, estoque_atual: Number(e.target.value)})} />
+          <div className="max-h-[75vh] overflow-y-auto bg-slate-50/50">
+            <div className="p-6 space-y-6">
+              
+              {/* FOTO E INFORMAÇÕES BÁSICAS */}
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                <div className="flex justify-center mb-6">
+                  <ImageUpload
+                    value={productForm.foto_url}
+                    onChange={(file) => setFotoFile(file)}
+                    onRemove={() => {
+                      setFotoFile(null);
+                      setProductForm({ ...productForm, foto_url: '' });
+                    }}
+                    shape="square"
+                    size="lg"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-2 md:col-span-1">
+                    <Label className="font-semibold">Nome do Produto *</Label>
+                    <Input className="bg-slate-50" value={productForm.nome || ''} onChange={e => setProductForm({...productForm, nome: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-2 md:col-span-1">
+                    <Label className="font-semibold">Categoria *</Label>
+                    <Select value={productForm.categoria_id} onValueChange={val => setProductForm({...productForm, categoria_id: val})}>
+                      <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {categorias.filter(c => c.ativo).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-2 md:col-span-1">
+                    <Label className="font-semibold">Marca</Label>
+                    <Input className="bg-slate-50" value={productForm.marca || ''} onChange={e => setProductForm({...productForm, marca: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-2 md:col-span-1">
+                    <Label className="font-semibold">Unidade</Label>
+                    <Select value={productForm.unidade} onValueChange={val => setProductForm({...productForm, unidade: val})}>
+                      <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {unidades.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label>Estoque Mínimo</Label>
-              <Input type="number" value={productForm.estoque_minimo} onChange={e => setProductForm({...productForm, estoque_minimo: Number(e.target.value)})} />
+
+              {/* VALORES E ESTOQUE */}
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Valores e Estoque</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Preço de Custo</Label>
+                    <Input className="bg-slate-50" type="number" step="0.01" value={productForm.preco_custo || ''} onChange={e => setProductForm({...productForm, preco_custo: Number(e.target.value)})} />
+                  </div>
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Preço de Venda</Label>
+                    <Input className="bg-slate-50" type="number" step="0.01" value={productForm.preco_venda || ''} onChange={e => setProductForm({...productForm, preco_venda: Number(e.target.value)})} />
+                  </div>
+                  {!selectedProduct && (
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Estoque Inicial</Label>
+                      <Input className="bg-slate-50" type="number" value={productForm.estoque_atual || ''} onChange={e => setProductForm({...productForm, estoque_atual: Number(e.target.value)})} />
+                    </div>
+                  )}
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Estoque Mínimo</Label>
+                    <Input className="bg-slate-50" type="number" value={productForm.estoque_minimo || ''} onChange={e => setProductForm({...productForm, estoque_minimo: Number(e.target.value)})} />
+                  </div>
+                </div>
+              </div>
+
+              {/* OUTRAS INFORMAÇÕES */}
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                  <Label className="font-semibold">Código de Barras</Label>
+                  <Input className="bg-slate-50" value={productForm.codigo_barras || ''} onChange={e => setProductForm({...productForm, codigo_barras: e.target.value})} />
+                </div>
+                <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                  <Label className="font-semibold">Descrição</Label>
+                  <Input className="bg-slate-50" value={productForm.descricao || ''} onChange={e => setProductForm({...productForm, descricao: e.target.value})} />
+                </div>
+              </div>
+
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label>Código de Barras</Label>
-              <Input value={productForm.codigo_barras} onChange={e => setProductForm({...productForm, codigo_barras: e.target.value})} />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label>Descrição</Label>
-              <Input value={productForm.descricao} onChange={e => setProductForm({...productForm, descricao: e.target.value})} />
+            
+            <div className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row justify-end gap-3">
+               <Button variant="outline" className="h-12 px-6 rounded-xl" onClick={() => { setIsProductModalOpen(false); setFotoFile(null); }}>Cancelar</Button>
+               <Button className="h-12 px-6 rounded-xl shadow-md" onClick={handleSaveProduct}>Salvar Produto</Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsProductModalOpen(false); setFotoFile(null); }}>Cancelar</Button>
-            <Button onClick={handleSaveProduct}>Salvar Produto</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Stock In Modal */}
       <Dialog open={isStockInModalOpen} onOpenChange={setIsStockInModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Entrada de Estoque</DialogTitle>
-            <DialogDescription>Adicione unidades ao estoque do produto {selectedProduct?.nome}.</DialogDescription>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-green-600 p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <TrendingUp className="w-6 h-6" />
+              Entrada de Estoque
+            </DialogTitle>
+            <p className="text-green-50 text-sm mt-1">Adicione unidades ao estoque do produto {selectedProduct?.nome}.</p>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="p-3 bg-muted/30 rounded-md border text-sm">
-              <div className="flex justify-between mb-1">
-                <span className="text-muted-foreground">Estoque Atual:</span>
-                <span className="font-bold">{selectedProduct?.estoque_atual} {selectedProduct?.unidade}</span>
+          <div className="p-6 space-y-6 bg-slate-50/50">
+            <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-2">
+              <div className="flex justify-between items-center pb-2 border-b">
+                <span className="text-muted-foreground font-semibold">Estoque Atual:</span>
+                <span className="font-bold text-lg">{selectedProduct?.estoque_atual} {selectedProduct?.unidade}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Preço de Custo:</span>
-                <span className="font-bold">R$ {selectedProduct?.preco_custo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-muted-foreground font-semibold">Preço de Custo:</span>
+                <span className="font-bold text-slate-700">R$ {selectedProduct?.preco_custo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Quantidade a Adicionar</Label>
-              <Input type="number" min="1" value={stockInForm.quantidade} onChange={e => setStockInForm({...stockInForm, quantidade: Number(e.target.value)})} />
+            
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                <Label className="font-semibold">Quantidade a Adicionar</Label>
+                <Input className="bg-slate-50 text-lg h-12" type="number" min="1" value={stockInForm.quantidade || ''} onChange={e => setStockInForm({...stockInForm, quantidade: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                <Label className="font-semibold">Motivo</Label>
+                <Select value={stockInForm.motivo} onValueChange={val => setStockInForm({...stockInForm, motivo: val})}>
+                  <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Compra">Compra / Reposição</SelectItem>
+                    <SelectItem value="Doação">Recebido p/ Doação</SelectItem>
+                    <SelectItem value="Ajuste de Inventário">Ajuste de Inventário (Sobra)</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Motivo</Label>
-              <Select value={stockInForm.motivo} onValueChange={val => setStockInForm({...stockInForm, motivo: val})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Compra">Compra / Reposição</SelectItem>
-                  <SelectItem value="Doação">Recebido p/ Doação</SelectItem>
-                  <SelectItem value="Ajuste de Inventário">Ajuste de Inventário (Sobra)</SelectItem>
-                  <SelectItem value="Outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsStockInModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleStockIn} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md">Confirmar</Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStockInModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleStockIn} className="bg-green-600 hover:bg-green-700">Confirmar Entrada</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Category Modal */}
       <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedCategory ? 'Editar Categoria' : 'Nova Categoria'}</DialogTitle>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-primary p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <Tag className="w-6 h-6" />
+              {selectedCategory ? 'Editar Categoria' : 'Nova Categoria'}
+            </DialogTitle>
+            <p className="text-primary-foreground/80 text-sm mt-1">Organize os produtos por categoria.</p>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nome da Categoria</Label>
-              <Input value={categoryForm.nome} onChange={e => setCategoryForm({...categoryForm, nome: e.target.value})} />
+          <div className="p-6 space-y-6 bg-slate-50/50">
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label className="font-semibold">Nome da Categoria</Label>
+                <Input className="bg-slate-50" value={categoryForm.nome || ''} onChange={e => setCategoryForm({...categoryForm, nome: e.target.value})} />
+              </div>
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label className="font-semibold">Descrição</Label>
+                <Input className="bg-slate-50" value={categoryForm.descricao || ''} onChange={e => setCategoryForm({...categoryForm, descricao: e.target.value})} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Input value={categoryForm.descricao} onChange={e => setCategoryForm({...categoryForm, descricao: e.target.value})} />
+            
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsCategoryModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleSaveCategory} className="h-12 rounded-xl shadow-md">Salvar</Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveCategory}>Salvar</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

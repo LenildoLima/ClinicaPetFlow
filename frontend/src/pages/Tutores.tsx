@@ -213,137 +213,166 @@ export default function Tutores() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Novo Tutor</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Tutor' : 'Cadastrar Tutor'}</DialogTitle>
+          <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl">
+            <DialogHeader className="bg-primary p-6">
+              <DialogTitle className="flex items-center gap-2 text-white text-xl">
+                <Users className="w-6 h-6" />
+                {editingId ? 'Editar Tutor' : 'Cadastrar Tutor'}
+              </DialogTitle>
+              <p className="text-primary-foreground/80 text-sm mt-1">
+                Preencha as informações do tutor abaixo para manter o cadastro atualizado.
+              </p>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2 space-y-1">
-                  <Label>Nome (obrigatório)</Label>
-                  <Input 
-                    value={form.nome} 
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })} 
-                    placeholder="Nome completo"
-                    required 
-                  />
-                </div>
+            <div className="max-h-[75vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-slate-50/50">
                 
-                <div className="space-y-1">
-                  <Label>CPF</Label>
-                  <Input 
-                    value={form.cpf} 
-                    onChange={(e) => setForm({ ...form, cpf: formatCPF(e.target.value) })} 
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                  />
+                {/* DADOS PRINCIPAIS */}
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Dados Pessoais</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Nome (obrigatório)</Label>
+                      <Input 
+                        value={form.nome} 
+                        onChange={(e) => setForm({ ...form, nome: e.target.value })} 
+                        placeholder="Nome completo"
+                        className="bg-slate-50"
+                        required 
+                      />
+                    </div>
+                    
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">CPF</Label>
+                      <Input 
+                        value={form.cpf} 
+                        onChange={(e) => setForm({ ...form, cpf: formatCPF(e.target.value) })} 
+                        placeholder="000.000.000-00"
+                        className="bg-slate-50"
+                        maxLength={14}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Telefone (obrigatório)</Label>
+                      <Input 
+                        value={form.telefone} 
+                        onChange={(e) => setForm({ ...form, telefone: formatPhone(e.target.value) })} 
+                        placeholder="(00) 00000-0000"
+                        className="bg-slate-50"
+                        maxLength={15}
+                        required 
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">WhatsApp</Label>
+                      <Input 
+                        value={form.whatsapp} 
+                        onChange={(e) => setForm({ ...form, whatsapp: formatPhone(e.target.value) })} 
+                        placeholder="(00) 00000-0000"
+                        className="bg-slate-50"
+                        maxLength={15}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">E-mail</Label>
+                      <Input 
+                        type="email"
+                        value={form.email} 
+                        onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                        placeholder="exemplo@email.com"
+                        className="bg-slate-50"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label>Telefone (obrigatório)</Label>
-                  <Input 
-                    value={form.telefone} 
-                    onChange={(e) => setForm({ ...form, telefone: formatPhone(e.target.value) })} 
-                    placeholder="(00) 00000-0000"
-                    maxLength={15}
-                    required 
-                  />
+                {/* ENDEREÇO */}
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <h3 className="font-semibold text-primary mb-2 text-sm uppercase tracking-wider">Endereço</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">CEP</Label>
+                      <Input 
+                        value={form.cep} 
+                        onChange={(e) => setForm({ ...form, cep: formatCEP(e.target.value) })} 
+                        onBlur={handleCEPBlur}
+                        placeholder="00.000-000"
+                        className="bg-slate-50"
+                        maxLength={10}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Endereço</Label>
+                      <Input 
+                        value={form.endereco} 
+                        onChange={(e) => setForm({ ...form, endereco: e.target.value })} 
+                        placeholder="Rua, número..."
+                        className="bg-slate-50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Bairro</Label>
+                      <Input 
+                        value={form.bairro} 
+                        onChange={(e) => setForm({ ...form, bairro: e.target.value })} 
+                        placeholder="Bairro"
+                        className="bg-slate-50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Cidade</Label>
+                      <Input 
+                        value={form.cidade} 
+                        onChange={(e) => setForm({ ...form, cidade: e.target.value })} 
+                        placeholder="Cidade"
+                        className="bg-slate-50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="font-semibold">Estado</Label>
+                      <Select
+                        value={form.estado}
+                        onValueChange={(v) => setForm({ ...form, estado: v })}
+                      >
+                        <SelectTrigger className="bg-slate-50">
+                          <SelectValue placeholder="Selecione o estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {estadosBR.map((uf) => (
+                            <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label>WhatsApp</Label>
-                  <Input 
-                    value={form.whatsapp} 
-                    onChange={(e) => setForm({ ...form, whatsapp: formatPhone(e.target.value) })} 
-                    placeholder="(00) 00000-0000"
-                    maxLength={15}
-                  />
+                {/* OBSERVAÇÕES */}
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Observações Iniciais</Label>
+                    <Textarea 
+                      value={form.observacoes} 
+                      onChange={(e) => setForm({ ...form, observacoes: e.target.value })} 
+                      placeholder="Informações adicionais..."
+                      className="min-h-[100px] bg-slate-50 resize-none"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label>E-mail</Label>
-                  <Input 
-                    type="email"
-                    value={form.email} 
-                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
-                    placeholder="exemplo@email.com"
-                  />
+                <div className="pt-2">
+                  <Button type="submit" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all" disabled={loading}>
+                    {editingId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+                  </Button>
                 </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <hr className="my-2 border-muted" />
-                </div>
-
-                <div className="space-y-1">
-                  <Label>CEP</Label>
-                  <Input 
-                    value={form.cep} 
-                    onChange={(e) => setForm({ ...form, cep: formatCEP(e.target.value) })} 
-                    onBlur={handleCEPBlur}
-                    placeholder="00.000-000"
-                    maxLength={10}
-                  />
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Endereço</Label>
-                  <Input 
-                    value={form.endereco} 
-                    onChange={(e) => setForm({ ...form, endereco: e.target.value })} 
-                    placeholder="Rua, número..."
-                  />
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Bairro</Label>
-                  <Input 
-                    value={form.bairro} 
-                    onChange={(e) => setForm({ ...form, bairro: e.target.value })} 
-                    placeholder="Bairro"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label>Cidade</Label>
-                  <Input 
-                    value={form.cidade} 
-                    onChange={(e) => setForm({ ...form, cidade: e.target.value })} 
-                    placeholder="Cidade"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label>Estado</Label>
-                  <Select
-                    value={form.estado}
-                    onValueChange={(v) => setForm({ ...form, estado: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {estadosBR.map((uf) => (
-                        <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="md:col-span-2 space-y-1">
-                  <Label>Observações</Label>
-                  <Textarea 
-                    value={form.observacoes} 
-                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })} 
-                    placeholder="Informações adicionais..."
-                    className="min-h-[100px]"
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full mt-4" disabled={loading}>
-                {editingId ? 'Salvar Alterações' : 'Salvar'}
-              </Button>
-            </form>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

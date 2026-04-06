@@ -555,131 +555,178 @@ export default function Caixa() {
 
       {/* Modais */}
       <Dialog open={isAbrirOpen} onOpenChange={setIsAbrirOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Abrir Caixa</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-primary p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <Unlock className="w-6 h-6" />
+              Abrir Caixa
+            </DialogTitle>
+            <p className="text-primary-foreground/80 text-sm mt-1">Inicie o dia informando o saldo inicial do caixa.</p>
+          </DialogHeader>
+          <div className="p-6 space-y-6 bg-slate-50/50">
             {mensagemSaldo && (
-              <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-100 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                <span>{mensagemSaldo}</span>
+              <div className="p-4 bg-blue-50 text-blue-700 rounded-xl text-sm border border-blue-100 flex items-center gap-3">
+                <DollarSign className="h-5 w-5 shrink-0" />
+                <span className="font-medium">{mensagemSaldo}</span>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Saldo Inicial em Dinheiro (R$)</Label>
-              <Input type="number" step="0.01" placeholder="0,00" value={saldoInicialInput} onChange={e => setSaldoInicialInput(e.target.value)} />
-              <p className="text-xs text-muted-foreground italic">Informe o valor presente na gaveta no início do dia.</p>
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                <Label className="font-semibold">Saldo Inicial em Dinheiro (R$)</Label>
+                <Input className="bg-slate-50 text-lg h-12" type="number" step="0.01" placeholder="0,00" value={saldoInicialInput} onChange={e => setSaldoInicialInput(e.target.value)} />
+                <p className="text-xs text-muted-foreground italic">Informe o valor presente na gaveta no início do dia.</p>
+              </div>
             </div>
-            <Button onClick={handleAbrirCaixa} className="w-full">Abrir Caixa</Button>
+            <div className="pt-2">
+              <Button onClick={handleAbrirCaixa} className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all">Confirmar Abertura</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isEntradaOpen} onOpenChange={setIsEntradaOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Registrar Entrada</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-               <Label>Descrição</Label>
-               <Input placeholder="Ex: Pagamento Banho, Venda de Ração" value={novaMovimentacao.descricao} onChange={e => setNovaMovimentacao({...novaMovimentacao, descricao: e.target.value})} />
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-green-600 p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <ArrowUpCircle className="w-6 h-6" />
+              Registrar Entrada
+            </DialogTitle>
+            <p className="text-green-50 text-sm mt-1">Insira os detalhes do valor recebido.</p>
+          </DialogHeader>
+          <div className="p-6 space-y-6 bg-slate-50/50">
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                 <Label className="font-semibold">Descrição</Label>
+                 <Input className="bg-slate-50" placeholder="Ex: Pagamento Banho, Venda de Ração" value={novaMovimentacao.descricao} onChange={e => setNovaMovimentacao({...novaMovimentacao, descricao: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                   <Label className="font-semibold">Valor (R$)</Label>
+                   <Input className="bg-slate-50" type="number" step="0.01" placeholder="0,00" value={novaMovimentacao.valor} onChange={e => setNovaMovimentacao({...novaMovimentacao, valor: e.target.value})} />
+                 </div>
+                 <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                   <Label className="font-semibold">Forma de Pagamento</Label>
+                   <Select value={novaMovimentacao.forma_pagamento} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, forma_pagamento: v})}>
+                      <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                      <SelectContent>{formasPagamento.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                   </Select>
+                 </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label>Valor (R$)</Label>
-                 <Input type="number" step="0.01" placeholder="0,00" value={novaMovimentacao.valor} onChange={e => setNovaMovimentacao({...novaMovimentacao, valor: e.target.value})} />
-               </div>
-               <div className="space-y-2">
-                 <Label>Forma de Pagamento</Label>
-                 <Select value={novaMovimentacao.forma_pagamento} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, forma_pagamento: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{formasPagamento.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <h3 className="font-semibold text-green-600 mb-2 text-sm uppercase tracking-wider">Vínculos Opcionais</h3>
+              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                 <Label className="font-semibold">Vincular Consulta</Label>
+                 <Select value={novaMovimentacao.consulta_id || 'none'} onValueChange={handleSelecionarConsulta}>
+                    <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione uma consulta..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma consulta</SelectItem>
+                      {consultasDia.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {format(new Date(c.data_hora), 'HH:mm')} - {c.pets?.nome} ({c.tutores?.nome})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                  </Select>
-               </div>
-            </div>
-            <div className="space-y-2">
-               <Label>Vincular Consulta (Opcional)</Label>
-               <Select value={novaMovimentacao.consulta_id || 'none'} onValueChange={handleSelecionarConsulta}>
-                  <SelectTrigger><SelectValue placeholder="Selecione uma consulta..." /></SelectTrigger>
+              </div>
+              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                <Label className="font-semibold">Vincular Venda Avulsa</Label>
+                <Select 
+                  value={vendaAvulsaVinculada} 
+                  onValueChange={handleSelecionarVendaAvulsa}
+                >
+                  <SelectTrigger className="bg-slate-50">
+                    <SelectValue placeholder="Nenhuma venda avulsa" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhuma consulta</SelectItem>
-                    {consultasDia.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {format(new Date(c.data_hora), 'HH:mm')} - {c.pets?.nome} ({c.tutores?.nome})
+                    <SelectItem value="none">Nenhuma venda avulsa</SelectItem>
+                    {vendasAvulsas?.map(v => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.descricao} — R$ {v.valor_final?.toFixed(2)} ({v.tutores?.nome || 'Sem tutor'})
                       </SelectItem>
                     ))}
                   </SelectContent>
-               </Select>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Vincular Venda Avulsa (Opcional)</Label>
-              <Select 
-                value={vendaAvulsaVinculada} 
-                onValueChange={handleSelecionarVendaAvulsa}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Nenhuma venda avulsa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma venda avulsa</SelectItem>
-                  {vendasAvulsas?.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.descricao} — R$ {v.valor_final?.toFixed(2)} ({v.tutores?.nome || 'Sem tutor'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            
+            <div className="pt-2">
+              <Button onClick={() => handleRegistrarMovimentacao('entrada')} className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all bg-green-600 hover:bg-green-700 text-white">Confirmar Entrada</Button>
             </div>
-            <Button onClick={() => handleRegistrarMovimentacao('entrada')} className="w-full bg-green-600 hover:bg-green-700">Confirmar Entrada</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isSaidaOpen} onOpenChange={setIsSaidaOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle className="text-red-600">Registrar Saída</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-               <Label>Descrição</Label>
-               <Input placeholder="Ex: Compra de material, Pagamento de luz" value={novaMovimentacao.descricao} onChange={e => setNovaMovimentacao({...novaMovimentacao, descricao: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label>Valor (R$)</Label>
-                 <Input type="number" step="0.01" placeholder="0,00" value={novaMovimentacao.valor} onChange={e => setNovaMovimentacao({...novaMovimentacao, valor: e.target.value})} />
-               </div>
-               <div className="space-y-2">
-                 <Label>Categoria</Label>
-                 <Select value={novaMovimentacao.categoria} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, categoria: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{categoriasSaida.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-red-600 p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <ArrowDownCircle className="w-6 h-6" />
+              Registrar Saída
+            </DialogTitle>
+            <p className="text-red-50 text-sm mt-1">Registre despesas e retiradas do caixa.</p>
+          </DialogHeader>
+          <div className="p-6 space-y-6 bg-slate-50/50">
+            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+              <div className="space-y-1.5 focus-within:text-red-600 transition-colors">
+                 <Label className="font-semibold">Descrição</Label>
+                 <Input className="bg-slate-50" placeholder="Ex: Compra de material, Pagamento de luz" value={novaMovimentacao.descricao} onChange={e => setNovaMovimentacao({...novaMovimentacao, descricao: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1.5 focus-within:text-red-600 transition-colors">
+                   <Label className="font-semibold">Valor (R$)</Label>
+                   <Input className="bg-slate-50" type="number" step="0.01" placeholder="0,00" value={novaMovimentacao.valor} onChange={e => setNovaMovimentacao({...novaMovimentacao, valor: e.target.value})} />
+                 </div>
+                 <div className="space-y-1.5 focus-within:text-red-600 transition-colors">
+                   <Label className="font-semibold">Categoria</Label>
+                   <Select value={novaMovimentacao.categoria} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, categoria: v})}>
+                      <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                      <SelectContent>{categoriasSaida.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                   </Select>
+                 </div>
+              </div>
+              <div className="space-y-1.5 focus-within:text-red-600 transition-colors">
+                 <Label className="font-semibold">Forma de Pagamento</Label>
+                 <Select value={novaMovimentacao.forma_pagamento} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, forma_pagamento: v})}>
+                    <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                    <SelectContent>{formasPagamento.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
                  </Select>
-               </div>
+              </div>
             </div>
-            <div className="space-y-2">
-               <Label>Forma de Pagamento</Label>
-               <Select value={novaMovimentacao.forma_pagamento} onValueChange={v => setNovaMovimentacao({...novaMovimentacao, forma_pagamento: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{formasPagamento.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
-               </Select>
+            <div className="pt-2">
+              <Button onClick={() => handleRegistrarMovimentacao('saida')} variant="destructive" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all hover:bg-red-700">Confirmar Saída</Button>
             </div>
-            <Button onClick={() => handleRegistrarMovimentacao('saida')} variant="destructive" className="w-full">Confirmar Saída</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isFecharOpen} onOpenChange={setIsFecharOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Fechar Caixa</DialogTitle></DialogHeader>
-          {caixaAtivo && (
-            <div className="space-y-6 py-4">
-              <div className="space-y-2 divide-y border rounded-lg p-4 bg-muted/20">
-                <div className="flex justify-between py-1 text-sm"><span>Saldo Inicial:</span><span>{formatCurrency(caixaAtivo.saldo_inicial)}</span></div>
-                <div className="flex justify-between py-1 text-sm text-green-600"><span>(+) Total Entradas:</span><span>{formatCurrency(totalEntradas)}</span></div>
-                <div className="flex justify-between py-1 text-sm text-red-600"><span>(-) Total Saídas:</span><span>{formatCurrency(totalSaidas)}</span></div>
-                <div className="flex justify-between py-2 text-xl font-bold border-t mt-2"><span>Saldo Final:</span><span className="text-primary">{formatCurrency(saldoAtual)}</span></div>
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-slate-800 p-6">
+            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+              <Lock className="w-6 h-6 text-red-400" />
+              Fechar Caixa
+            </DialogTitle>
+            <p className="text-slate-300 text-sm mt-1">Confira os valores finais antes do fechamento definitivo.</p>
+          </DialogHeader>
+          {caixaAtivo ? (
+            <div className="p-6 space-y-6 bg-slate-50/50">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div className="space-y-3 divide-y">
+                  <div className="flex justify-between py-2 text-sm font-medium text-slate-600"><span>Saldo Inicial:</span><span className="font-bold text-slate-900">{formatCurrency(caixaAtivo.saldo_inicial)}</span></div>
+                  <div className="flex justify-between py-2 text-sm text-green-600 font-medium"><span>(+) Total Entradas:</span><span className="font-bold">{formatCurrency(totalEntradas)}</span></div>
+                  <div className="flex justify-between py-2 text-sm text-red-600 font-medium"><span>(-) Total Saídas:</span><span className="font-bold">{formatCurrency(totalSaidas)}</span></div>
+                  <div className="flex justify-between py-3 text-xl font-bold mt-2 bg-slate-50 -mx-5 px-5 rounded-b-xl border-t"><span>Saldo Final na Gaveta:</span><span className="text-primary">{formatCurrency(saldoAtual)}</span></div>
+                </div>
               </div>
-              <p className="text-sm text-center text-muted-foreground px-4">Ao fechar o caixa, você não poderá mais registrar movimentações para esta data.</p>
-              <Button onClick={handleFecharCaixa} variant="destructive" className="w-full h-12 text-lg">Confirmar Fechamento</Button>
+              <p className="text-sm text-center text-slate-500 px-4">Ao fechar o caixa, você não poderá mais registrar movimentações para a data de hoje.</p>
+              <div className="pt-2">
+                <Button onClick={handleFecharCaixa} variant="destructive" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all hover:bg-red-700">Confirmar Fechamento</Button>
+              </div>
             </div>
+          ) : (
+            <div className="p-6 text-center text-slate-500">O caixa atual não pôde ser carregado.</div>
           )}
         </DialogContent>
       </Dialog>
