@@ -462,49 +462,51 @@ export default function Configuracoes() {
             <DialogHeader>
               <DialogTitle>Editar Usuário</DialogTitle>
             </DialogHeader>
-            {selectedUsuario && (
-              <form onSubmit={handleSaveUsuario} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="modal-nome">Nome</Label>
-                  <Input id="modal-nome" name="nome" defaultValue={selectedUsuario.nome} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modal-email">E-mail</Label>
-                  <Input id="modal-email" name="email" defaultValue={selectedUsuario.email} readOnly className="bg-gray-50 text-gray-500" />
-                  <p className="text-[10px] text-gray-500">O e-mail não pode ser alterado por aqui.</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modal-telefone">Telefone</Label>
-                  <Input id="modal-telefone" name="telefone" defaultValue={selectedUsuario.telefone || ""} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="modal-cargo">Cargo</Label>
-                  <Select name="cargo" value={cargoEdit} onValueChange={setCargoEdit}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cargo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="veterinario">Veterinário</SelectItem>
-                      <SelectItem value="recepcionista">Recepcionista</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {cargoEdit === "veterinario" && (
+            <div className="max-h-[80vh] overflow-y-auto">
+              {selectedUsuario && (
+                <form onSubmit={handleSaveUsuario} className="space-y-4 px-1">
                   <div className="space-y-2">
-                    <Label htmlFor="modal-crmv">CRMV</Label>
-                    <Input id="modal-crmv" name="crmv" defaultValue={selectedUsuario.crmv || ""} />
+                    <Label htmlFor="modal-nome">Nome</Label>
+                    <Input id="modal-nome" name="nome" defaultValue={selectedUsuario.nome} required />
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label htmlFor="modal-email">E-mail</Label>
+                    <Input id="modal-email" name="email" defaultValue={selectedUsuario.email} readOnly className="bg-gray-50 text-gray-500" />
+                    <p className="text-[10px] text-gray-500">O e-mail não pode ser alterado por aqui.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="modal-telefone">Telefone</Label>
+                    <Input id="modal-telefone" name="telefone" defaultValue={selectedUsuario.telefone || ""} />
+                  </div>
 
-                <DialogFooter className="mt-6">
-                  <Button type="button" variant="outline" onClick={() => setEditUsuarioModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit">Salvar</Button>
-                </DialogFooter>
-              </form>
-            )}
+                  <div className="space-y-2">
+                    <Label htmlFor="modal-cargo">Cargo</Label>
+                    <Select name="cargo" value={cargoEdit} onValueChange={setCargoEdit}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cargo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="veterinario">Veterinário</SelectItem>
+                        <SelectItem value="recepcionista">Recepcionista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {cargoEdit === "veterinario" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="modal-crmv">CRMV</Label>
+                      <Input id="modal-crmv" name="crmv" defaultValue={selectedUsuario.crmv || ""} />
+                    </div>
+                  )}
+
+                  <DialogFooter className="mt-6">
+                    <Button type="button" variant="outline" onClick={() => setEditUsuarioModalOpen(false)}>Cancelar</Button>
+                    <Button type="submit">Salvar</Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       )}

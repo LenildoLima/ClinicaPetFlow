@@ -647,27 +647,29 @@ export default function Financeiro() {
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Registrar Pagamento</DialogTitle></DialogHeader>
-          {selectedCobranca && (
-            <div className="space-y-4 py-4">
-              <div className="text-center p-4 bg-muted/20 rounded border border-dashed">
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Valor Pendente</p>
-                <h1 className="text-4xl font-black text-primary">{formatCurrency(selectedCobranca.valor_final || (selectedCobranca.valor_total - selectedCobranca.desconto))}</h1>
+          <div className="max-h-[80vh] overflow-y-auto">
+            {selectedCobranca && (
+              <div className="space-y-4 py-4">
+                <div className="text-center p-4 bg-muted/20 rounded border border-dashed">
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Valor Pendente</p>
+                  <h1 className="text-4xl font-black text-primary">{formatCurrency(selectedCobranca.valor_final || (selectedCobranca.valor_total - selectedCobranca.desconto))}</h1>
+                </div>
+                <div className="space-y-2">
+                  <Label>Forma de Pagamento Utilizada</Label>
+                  <Select value={selectedCobranca.forma_pagamento} onValueChange={v => setSelectedCobranca({...selectedCobranca, forma_pagamento: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {formaPagamentoOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="p-3 bg-green-50 text-green-700 text-xs rounded border border-green-200">
+                  A data do pagamento será registrada como hoje ({format(new Date(), 'dd/MM/yyyy')}).
+                </div>
+                <Button onClick={handleRegistrarPagamento} className="w-full h-12 text-lg">Confirmar Recebimento</Button>
               </div>
-              <div className="space-y-2">
-                <Label>Forma de Pagamento Utilizada</Label>
-                <Select value={selectedCobranca.forma_pagamento} onValueChange={v => setSelectedCobranca({...selectedCobranca, forma_pagamento: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {formaPagamentoOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="p-3 bg-green-50 text-green-700 text-xs rounded border border-green-200">
-                A data do pagamento será registrada como hoje ({format(new Date(), 'dd/MM/yyyy')}).
-              </div>
-              <Button onClick={handleRegistrarPagamento} className="w-full h-12 text-lg">Confirmar Recebimento</Button>
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -675,70 +677,72 @@ export default function Financeiro() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Detalhes da Cobrança</DialogTitle></DialogHeader>
-          {selectedCobranca && (
-            <div className="space-y-6 py-4 overflow-y-auto pr-2">
-              <div className="flex items-center justify-between border-b pb-4">
-                 <div className="space-y-1">
-                   <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">ID da Fatura</p>
-                   <p className="font-mono text-sm">{selectedCobranca.id}</p>
-                 </div>
-                 <Badge variant="outline" className={`${statusColors[selectedCobranca.status]} text-sm px-4 py-1`}>{statusLabels[selectedCobranca.status] || selectedCobranca.status}</Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 text-sm">
-                 <div className="space-y-4">
-                   <div>
-                     <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Tutor Responsável</p>
-                     <p className="font-semibold text-base">{selectedCobranca.tutores?.nome}</p>
-                     <p className="text-muted-foreground">{selectedCobranca.tutores?.telefone}</p>
+          <div className="max-h-[80vh] overflow-y-auto">
+            {selectedCobranca && (
+              <div className="space-y-6 py-4 pr-2">
+                <div className="flex items-center justify-between border-b pb-4">
+                   <div className="space-y-1">
+                     <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">ID da Fatura</p>
+                     <p className="font-mono text-sm">{selectedCobranca.id}</p>
                    </div>
-                   <div>
-                     <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Vencimento</p>
-                     <p className="font-semibold">{format(new Date(selectedCobranca.data_vencimento), 'dd/MM/yyyy')}</p>
-                   </div>
-                 </div>
-                 <div className="space-y-4">
-                   <div>
-                     <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Forma de Pagamento</p>
-                     <p className="font-semibold">{getFormaPagamentoLabel(selectedCobranca.forma_pagamento)}</p>
-                   </div>
-                   {selectedCobranca.data_pagamento && (
-                     <div>
-                       <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Pagamento realizado em</p>
-                       <p className="font-bold text-green-600">{format(new Date(selectedCobranca.data_pagamento), 'dd/MM/yyyy')}</p>
-                     </div>
-                   )}
-                 </div>
-              </div>
-
-              <div className="space-y-3">
-                 <p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest border-b pb-1">Descrição dos Itens</p>
-                 <div className="space-y-2">
-                    {selectedCobranca.financeiro_itens?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-dashed last:border-0">
-                         <div>
-                            <p className="font-bold">{item.descricao}</p>
-                            <p className="text-xs text-muted-foreground">{item.quantidade}x {formatCurrency(item.valor_unitario)}</p>
-                         </div>
-                         <p className="font-bold">{formatCurrency(item.valor_total)}</p>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-
-              <div className="bg-muted p-4 rounded-lg space-y-2">
-                 <div className="flex justify-between text-sm"><span>Subtotal:</span><span>{formatCurrency(selectedCobranca.valor_total)}</span></div>
-                 <div className="flex justify-between text-sm text-red-600"><span>Desconto:</span><span>- {formatCurrency(selectedCobranca.desconto)}</span></div>
-                 <div className="flex justify-between text-xl font-bold border-t pt-2 mt-2"><span>Total Final:</span><span className="text-primary">{formatCurrency(selectedCobranca.valor_final)}</span></div>
-              </div>
-
-              {selectedCobranca.observacoes && (
-                <div className="p-3 bg-muted/30 rounded border text-xs italic">
-                  <strong>Observações:</strong> {selectedCobranca.observacoes}
+                   <Badge variant="outline" className={`${statusColors[selectedCobranca.status]} text-sm px-4 py-1`}>{statusLabels[selectedCobranca.status] || selectedCobranca.status}</Badge>
                 </div>
-              )}
-            </div>
-          )}
+
+                <div className="grid grid-cols-2 gap-6 text-sm">
+                   <div className="space-y-4">
+                     <div>
+                       <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Tutor Responsável</p>
+                       <p className="font-semibold text-base">{selectedCobranca.tutores?.nome}</p>
+                       <p className="text-muted-foreground">{selectedCobranca.tutores?.telefone}</p>
+                     </div>
+                     <div>
+                       <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Vencimento</p>
+                       <p className="font-semibold">{format(new Date(selectedCobranca.data_vencimento), 'dd/MM/yyyy')}</p>
+                     </div>
+                   </div>
+                   <div className="space-y-4">
+                     <div>
+                       <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Forma de Pagamento</p>
+                       <p className="font-semibold">{getFormaPagamentoLabel(selectedCobranca.forma_pagamento)}</p>
+                     </div>
+                     {selectedCobranca.data_pagamento && (
+                       <div>
+                         <p className="font-bold text-slate-500 uppercase text-[10px] mb-1">Pagamento realizado em</p>
+                         <p className="font-bold text-green-600">{format(new Date(selectedCobranca.data_pagamento), 'dd/MM/yyyy')}</p>
+                       </div>
+                     )}
+                   </div>
+                </div>
+
+                <div className="space-y-3">
+                   <p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest border-b pb-1">Descrição dos Itens</p>
+                   <div className="space-y-2">
+                      {selectedCobranca.financeiro_itens?.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-dashed last:border-0">
+                           <div>
+                              <p className="font-bold">{item.descricao}</p>
+                              <p className="text-xs text-muted-foreground">{item.quantidade}x {formatCurrency(item.valor_unitario)}</p>
+                           </div>
+                           <p className="font-bold">{formatCurrency(item.valor_total)}</p>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                   <div className="flex justify-between text-sm"><span>Subtotal:</span><span>{formatCurrency(selectedCobranca.valor_total)}</span></div>
+                   <div className="flex justify-between text-sm text-red-600"><span>Desconto:</span><span>- {formatCurrency(selectedCobranca.desconto)}</span></div>
+                   <div className="flex justify-between text-xl font-bold border-t pt-2 mt-2"><span>Total Final:</span><span className="text-primary">{formatCurrency(selectedCobranca.valor_final)}</span></div>
+                </div>
+
+                {selectedCobranca.observacoes && (
+                  <div className="p-3 bg-muted/30 rounded border text-xs italic">
+                    <strong>Observações:</strong> {selectedCobranca.observacoes}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -756,40 +756,42 @@ export default function Estoque() {
             </DialogTitle>
             <p className="text-green-50 text-sm mt-1">Adicione unidades ao estoque do produto {selectedProduct?.nome}.</p>
           </DialogHeader>
-          <div className="p-6 space-y-6 bg-slate-50/50">
-            <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-2">
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-muted-foreground font-semibold">Estoque Atual:</span>
-                <span className="font-bold text-lg">{selectedProduct?.estoque_atual} {selectedProduct?.unidade}</span>
+          <div className="max-h-[80vh] overflow-y-auto">
+            <div className="p-6 space-y-6 bg-slate-50/50">
+              <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <span className="text-muted-foreground font-semibold">Estoque Atual:</span>
+                  <span className="font-bold text-lg">{selectedProduct?.estoque_atual} {selectedProduct?.unidade}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-muted-foreground font-semibold">Preço de Custo:</span>
+                  <span className="font-bold text-slate-700">R$ {selectedProduct?.preco_custo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-muted-foreground font-semibold">Preço de Custo:</span>
-                <span className="font-bold text-slate-700">R$ {selectedProduct?.preco_custo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                  <Label className="font-semibold">Quantidade a Adicionar</Label>
+                  <Input className="bg-slate-50 text-lg h-12" type="number" min="1" value={stockInForm.quantidade || ''} onChange={e => setStockInForm({...stockInForm, quantidade: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
+                  <Label className="font-semibold">Motivo</Label>
+                  <Select value={stockInForm.motivo} onValueChange={val => setStockInForm({...stockInForm, motivo: val})}>
+                    <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Compra">Compra / Reposição</SelectItem>
+                      <SelectItem value="Doação">Recebido p/ Doação</SelectItem>
+                      <SelectItem value="Ajuste de Inventário">Ajuste de Inventário (Sobra)</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            
-            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
-                <Label className="font-semibold">Quantidade a Adicionar</Label>
-                <Input className="bg-slate-50 text-lg h-12" type="number" min="1" value={stockInForm.quantidade || ''} onChange={e => setStockInForm({...stockInForm, quantidade: Number(e.target.value)})} />
-              </div>
-              <div className="space-y-1.5 focus-within:text-green-600 transition-colors">
-                <Label className="font-semibold">Motivo</Label>
-                <Select value={stockInForm.motivo} onValueChange={val => setStockInForm({...stockInForm, motivo: val})}>
-                  <SelectTrigger className="bg-slate-50"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Compra">Compra / Reposição</SelectItem>
-                    <SelectItem value="Doação">Recebido p/ Doação</SelectItem>
-                    <SelectItem value="Ajuste de Inventário">Ajuste de Inventário (Sobra)</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsStockInModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleStockIn} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md">Confirmar</Button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsStockInModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleStockIn} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md">Confirmar</Button>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -805,21 +807,23 @@ export default function Estoque() {
             </DialogTitle>
             <p className="text-primary-foreground/80 text-sm mt-1">Organize os produtos por categoria.</p>
           </DialogHeader>
-          <div className="p-6 space-y-6 bg-slate-50/50">
-            <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-              <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                <Label className="font-semibold">Nome da Categoria</Label>
-                <Input className="bg-slate-50" value={categoryForm.nome || ''} onChange={e => setCategoryForm({...categoryForm, nome: e.target.value})} />
+          <div className="max-h-[80vh] overflow-y-auto">
+            <div className="p-6 space-y-6 bg-slate-50/50">
+              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                  <Label className="font-semibold">Nome da Categoria</Label>
+                  <Input className="bg-slate-50" value={categoryForm.nome || ''} onChange={e => setCategoryForm({...categoryForm, nome: e.target.value})} />
+                </div>
+                <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                  <Label className="font-semibold">Descrição</Label>
+                  <Input className="bg-slate-50" value={categoryForm.descricao || ''} onChange={e => setCategoryForm({...categoryForm, descricao: e.target.value})} />
+                </div>
               </div>
-              <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                <Label className="font-semibold">Descrição</Label>
-                <Input className="bg-slate-50" value={categoryForm.descricao || ''} onChange={e => setCategoryForm({...categoryForm, descricao: e.target.value})} />
+              
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsCategoryModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSaveCategory} className="h-12 rounded-xl shadow-md">Salvar</Button>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button variant="outline" className="h-12 rounded-xl" onClick={() => setIsCategoryModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSaveCategory} className="h-12 rounded-xl shadow-md">Salvar</Button>
             </div>
           </div>
         </DialogContent>

@@ -220,91 +220,93 @@ export default function Agenda() {
                 Preencha os dados abaixo para reservar um horário.
               </p>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="p-6 pt-2 space-y-6 bg-slate-50/50">
-              
-              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                  <Label className="flex items-center gap-2 font-semibold">Tutor Responsável</Label>
-                  <Input
-                    placeholder="Buscar tutor por nome..."
-                    value={tutorSearch}
-                    onChange={(e) => setTutorSearch(e.target.value)}
-                    className="mb-2 bg-slate-50 border-slate-200"
-                  />
-                  <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v, pet_id: '' })}>
-                    <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione o tutor da lista" /></SelectTrigger>
-                    <SelectContent>
-                      {tutores.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                  <Label className="font-semibold">Pet do Tutor</Label>
-                  <Select value={form.pet_id} onValueChange={(v) => setForm({ ...form, pet_id: v })} disabled={!form.tutor_id}>
-                    <SelectTrigger className={!form.tutor_id ? "bg-slate-100 text-slate-400" : "bg-slate-50"}><SelectValue placeholder={form.tutor_id ? 'Selecione o pet' : 'Selecione um tutor primeiro'} /></SelectTrigger>
-                    <SelectContent>
-                      {pets.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="max-h-[80vh] overflow-y-auto">
+              <form onSubmit={handleSubmit} className="p-6 pt-2 space-y-6 bg-slate-50/50">
+                
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
                   <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                    <Label className="flex items-center gap-2 font-semibold">Tipo de Atendimento</Label>
-                    <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
-                      <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <Label className="flex items-center gap-2 font-semibold">Tutor Responsável</Label>
+                    <Input
+                      placeholder="Buscar tutor por nome..."
+                      value={tutorSearch}
+                      onChange={(e) => setTutorSearch(e.target.value)}
+                      className="mb-2 bg-slate-50 border-slate-200"
+                    />
+                    <Select value={form.tutor_id} onValueChange={(v) => setForm({ ...form, tutor_id: v, pet_id: '' })}>
+                      <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione o tutor da lista" /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(tipoLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        {tutores.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                    <Label className="flex items-center gap-2 font-semibold">Veterinário</Label>
-                    <Select value={form.veterinario_id} onValueChange={(v) => setForm({ ...form, veterinario_id: v })}>
-                      <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                    <Label className="font-semibold">Pet do Tutor</Label>
+                    <Select value={form.pet_id} onValueChange={(v) => setForm({ ...form, pet_id: v })} disabled={!form.tutor_id}>
+                      <SelectTrigger className={!form.tutor_id ? "bg-slate-100 text-slate-400" : "bg-slate-50"}><SelectValue placeholder={form.tutor_id ? 'Selecione o pet' : 'Selecione um tutor primeiro'} /></SelectTrigger>
                       <SelectContent>
-                        {veterinarios.map((v) => (
-                          <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>
+                        {pets.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-1 md:col-span-2">
-                    <Label className="flex items-center gap-2 font-semibold">Data e Horário</Label>
-                    <Input type="datetime-local" className="bg-slate-50 text-base py-5" value={form.data_hora} onChange={(e) => setForm({ ...form, data_hora: e.target.value })} required />
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="flex items-center gap-2 font-semibold">Tipo de Atendimento</Label>
+                      <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                        <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(tipoLabels).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                      <Label className="flex items-center gap-2 font-semibold">Veterinário</Label>
+                      <Select value={form.veterinario_id} onValueChange={(v) => setForm({ ...form, veterinario_id: v })}>
+                        <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                        <SelectContent>
+                          {veterinarios.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 focus-within:text-primary transition-colors col-span-1 md:col-span-2">
+                      <Label className="flex items-center gap-2 font-semibold">Data e Horário</Label>
+                      <Input type="datetime-local" className="bg-slate-50 text-base py-5" value={form.data_hora} onChange={(e) => setForm({ ...form, data_hora: e.target.value })} required />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                  <Label className="font-semibold">Motivo Principal</Label>
-                  <Input className="bg-slate-50" value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} placeholder="Ex: Consulta de rotina, vacinação, retorno..." required />
+                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold">Motivo Principal</Label>
+                    <Input className="bg-slate-50" value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} placeholder="Ex: Consulta de rotina, vacinação, retorno..." required />
+                  </div>
+
+                  <div className="space-y-1.5 focus-within:text-primary transition-colors">
+                    <Label className="font-semibold text-slate-500">Observações Extras (Opcional)</Label>
+                    <Textarea className="bg-slate-50 resize-none" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="Alguma particularidade importante?" rows={2} />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5 focus-within:text-primary transition-colors">
-                  <Label className="font-semibold text-slate-500">Observações Extras (Opcional)</Label>
-                  <Textarea className="bg-slate-50 resize-none" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="Alguma particularidade importante?" rows={2} />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all" disabled={loading}>
-                {loading ? 'Salvando...' : 'Confirmar Agendamento'}
-              </Button>
-            </form>
+                <Button type="submit" className="w-full text-lg h-12 rounded-xl shadow-md hover:shadow-lg transition-all" disabled={loading}>
+                  {loading ? 'Salvando...' : 'Confirmar Agendamento'}
+                </Button>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

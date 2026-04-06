@@ -38,13 +38,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('usuarios')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); // Changed from .single() to avoid 406 if row missing
       
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116' || error.message.includes('JSON object')) {
+          console.warn('Usuário não encontrado na tabela usuarios');
+          setUserData(null);
+          return;
+        }
+        throw error;
+      }
       setUserData(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao buscar dados do usuário:', error);
-      setUserData(null);
+      // Se o erro for de autenticação, limpa a sessão para evitar loops
+      if (error.status === 401 || error.status === 403 || error.status === 406) {
+        setUserData(null);
+        // Não forçar logout aqui para evitar loops se onAuthStateChange disparar novamente
+      }
     }
   };
 
@@ -55,18 +66,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event);
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         fetchUserData(session.user.id);
       } else {
         setUserData(null);
       }
+      
+      // Se a sessão foi invalidada ou expirou, garantimos que limpamos o estado
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        setLoading(false);
+      }
+      
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Erro ao carregar sessão inicial:', error);
+        // Se o erro for de token inválido ou rate limit, limpamos TUDO
+        if (
+          error.message.includes('refresh_token_not_found') || 
+          error.message.includes('Invalid Refresh Token') ||
+          error.status === 429 ||
+          error.status === 400
+        ) {
+          console.warn('Limpando sessão corrompida...');
+          supabase.auth.signOut().then(() => {
+            // Se o signOut falhar, tentamos limpar o localStorage manualmente
+            const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+            if (storageKey) localStorage.removeItem(storageKey);
+            window.location.reload(); // Recarrega para limpar o estado do cliente
+          });
+        }
+        setLoading(false);
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {

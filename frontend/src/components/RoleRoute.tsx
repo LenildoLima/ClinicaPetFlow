@@ -20,6 +20,16 @@ export default function RoleRoute({ children, allowedRoles }: RoleRouteProps) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  
+  // Se tem usuário mas ainda não os dados (e não está em loading geral),
+  // aguardamos os dados para decidir a rota
+  if (user && !userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (userData && !allowedRoles.includes(userData.cargo)) {
     // Redireciona para a página inicial baseada no cargo

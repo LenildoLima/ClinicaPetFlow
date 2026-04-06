@@ -176,7 +176,7 @@ export default function Login() {
             .from('usuarios')
             .select('cargo')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
           if (usuario?.cargo === 'admin') navigate('/');
           else if (usuario?.cargo === 'veterinario') navigate('/minha-agenda');
