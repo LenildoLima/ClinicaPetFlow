@@ -210,7 +210,7 @@ function TopNavbar() {
   );
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background shadow-sm">
+    <header className="sticky top-0 z-40 w-full border-b border-gray-200/50 bg-white/70 backdrop-blur-md shadow-sm">
       <div className="flex h-14 items-center px-4 md:px-6 gap-4">
         {/* Mobile Nav Trigger */}
         <div className="md:hidden">
@@ -687,7 +687,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <AtualizacaoBanner />
-      <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      <div className="min-h-screen flex flex-col bg-slate-50/50">
         <TopNavbar />
         
         {/* Notificações injetadas usando position fixed no topo direito, ao lado do Perfil */}
@@ -761,7 +761,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Main Content Area filling width */}
-        <main className="flex-1 w-full mx-auto px-4 sm:px-6 md:px-8 py-6 pb-20 max-w-[1400px]">
+        <main className="flex-1 w-full mx-auto px-4 sm:px-6 md:px-8 py-6 pb-20 max-w-[1400px] animate-in fade-in slide-in-from-bottom-4 duration-500">
            {children}
         </main>
 

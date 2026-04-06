@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Filter, DollarSign, Clock, Calendar, CheckCircle2, ChevronDown, Trash2, Eye, Receipt, ArrowRight, UserPlus } from 'lucide-react';
+import { Plus, Search, Filter, DollarSign, Clock, Calendar, CheckCircle2, ChevronDown, Trash2, Eye, Receipt, ArrowRight, UserPlus, ShoppingCart, User, Package, Tag, CreditCard, CheckCircle } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import {
   AlertDialog,
@@ -73,12 +74,12 @@ const statusLabels: Record<string, string> = {
 };
 
 const formaPagamentoOptions = [
-  { value: 'dinheiro', label: 'Dinheiro' },
-  { value: 'pix', label: 'Pix' },
-  { value: 'cartao_debito', label: 'Cartão Débito' },
-  { value: 'cartao_credito', label: 'Cartão Crédito' },
-  { value: 'boleto', label: 'Boleto' },
-  { value: 'outro', label: 'Outro' },
+  { value: 'dinheiro', label: 'Dinheiro', icone: '💵' },
+  { value: 'pix', label: 'Pix', icone: '📱' },
+  { value: 'cartao_debito', label: 'Cartão Débito', icone: '💳' },
+  { value: 'cartao_credito', label: 'Cartão Crédito', icone: '💳' },
+  { value: 'boleto', label: 'Boleto', icone: '📄' },
+  { value: 'outro', label: 'Outro', icone: '💰' },
 ];
 
 const getFormaPagamentoLabel = (value: string) => {
@@ -88,6 +89,7 @@ const getFormaPagamentoLabel = (value: string) => {
 export default function Financeiro() {
   const { user, userData } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
   const [searchTutor, setSearchTutor] = useState('');
@@ -458,337 +460,8 @@ export default function Financeiro() {
           <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
           <p className="text-muted-foreground text-sm">Gerencie cobranças, pagamentos e fluxo de caixa.</p>
         </div>
-        <Dialog open={isNewCobrancaOpen} onOpenChange={setIsNewCobrancaOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 shadow-sm"><Plus className="h-4 w-4" /> Nova Cobrança</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Registrar Nova Cobrança</DialogTitle></DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 relative">
-                  <div className="flex items-center justify-between">
-                    <Label>Tutor</Label>
-                    {!selectedTutor && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-[10px] uppercase font-bold text-primary gap-1"
-                        onClick={() => setIsQuickTutorOpen(!isQuickTutorOpen)}
-                      >
-                        <UserPlus className="h-3 w-3" /> {isQuickTutorOpen ? 'Cancelar' : 'Novo'}
-                      </Button>
-                    )}
-                  </div>
+        <Button onClick={() => navigate('/financeiro/nova-cobranca')} className="gap-2 shadow-sm"><Plus className="h-4 w-4" /> Nova Cobrança</Button>
 
-                  {isQuickTutorOpen && !selectedTutor ? (
-                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-md space-y-3 animate-in fade-in slide-in-from-top-1">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold">Nome do Novo Tutor</Label>
-                        <Input 
-                          placeholder="Nome completo..." 
-                          className="h-8 text-sm"
-                          value={quickTutor.nome}
-                          onChange={e => setQuickTutor({...quickTutor, nome: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold">Telefone</Label>
-                        <Input 
-                          placeholder="(00) 00000-0000" 
-                          className="h-8 text-sm"
-                          value={quickTutor.telefone}
-                          onChange={e => setQuickTutor({...quickTutor, telefone: formatPhone(e.target.value)})}
-                          maxLength={15}
-                        />
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full h-8 text-xs bg-primary hover:bg-primary/90" 
-                        onClick={handleSaveQuickTutor}
-                        disabled={isSavingTutor}
-                      >
-                        {isSavingTutor ? 'Salvando...' : 'Cadastrar e Selecionar'}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Popover open={isTutorSearchOpen} onOpenChange={setIsTutorSearchOpen}>
-                      <PopoverTrigger asChild>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            placeholder="Buscar tutor (Seta para baixo para ver resultados)..." 
-                            className="pl-9 h-10" 
-                            value={tutorSearchTerm || (selectedTutor?.nome || '')} 
-                            onChange={e => {
-                              setTutorSearchTerm(e.target.value);
-                              setTutorInput(e.target.value);
-                              setIsTutorSearchOpen(true);
-                            }} 
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && selectedTutor) {
-                                descriptionRefs.current[0]?.focus();
-                              }
-                            }}
-                          />
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[450px] p-0" align="start">
-                        <Command>
-                          <CommandList>
-                            <CommandEmpty>Nenhum tutor encontrado.</CommandEmpty>
-                            <CommandGroup heading="Tutores Encontrados">
-                              {tutoresFound.map(t => (
-                                <CommandItem
-                                  key={t.id}
-                                  value={t.nome}
-                                  onSelect={() => {
-                                    setSelectedTutor(t);
-                                    setTutorSearchTerm(t.nome);
-                                    setTutorInput(t.nome);
-                                    setTutoresFound([]);
-                                    setIsTutorSearchOpen(false);
-                                    // Focar no primeiro campo de descrição para agilizar
-                                    setTimeout(() => descriptionRefs.current[0]?.focus(), 100);
-                                  }}
-                                  className="text-sm py-2 cursor-pointer"
-                                >
-                                  <div className="flex flex-col">
-                                    <span className="font-semibold">{t.nome}</span>
-                                    <span className="text-xs text-muted-foreground">{t.telefone}</span>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                      {selectedTutor && (
-                        <div className="flex items-center justify-between bg-primary/5 p-2 rounded border border-primary/20 mt-2">
-                           <span className="text-sm font-medium">{selectedTutor.nome}</span>
-                           <Button variant="ghost" size="sm" onClick={() => { setSelectedTutor(null); setTutorInput(''); setTutorSearchTerm(''); }}>Alterar</Button>
-                        </div>
-                      )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Vincular Consulta (Opcional)</Label>
-                  <Select value={newCobranca.consulta_id} onValueChange={v => setNewCobranca({...newCobranca, consulta_id: v})}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder={selectedTutor ? "Selecione uma consulta..." : "Selecione o tutor primeiro"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma consulta</SelectItem>
-                      {tutorConsultas.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {format(new Date(c.data_hora), 'dd/MM/yyyy HH:mm')} - {c.tipo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Itens da Cobrança</h3>
-                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={handleAddItem}><Plus className="h-3 w-3 mr-1" /> Item Personalizado (Novo)</Button>
-                </div>
-                <Table className="border rounded-lg">
-                  <TableHeader className="bg-muted/30">
-                    <TableRow>
-                      <TableHead className="w-[45%]">Descrição</TableHead>
-                      <TableHead className="w-[10%] text-center">Qtd</TableHead>
-                      <TableHead className="w-[20%] text-right">Valor Unit.</TableHead>
-                      <TableHead className="w-[20%] text-right font-bold">Total</TableHead>
-                      <TableHead className="w-[5%]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item, idx) => (
-                      <TableRow key={idx} className="group hover:bg-muted/30 transition-colors">
-                        <TableCell className="p-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <div className="relative">
-                                <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground opacity-50" />
-                                <Input
-                                  ref={(el) => (descriptionRefs.current[idx] = el)}
-                                  value={item.descricao}
-                                  onChange={(e) => updateItem(idx, 'descricao', e.target.value)}
-                                  placeholder="Busque no catálogo ou digite..."
-                                  className="h-9 pl-7 bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary transition-all"
-                                />
-                              </div>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[400px] p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Filtrar catálogo..." className="h-8" />
-                                <CommandList className="max-h-[300px]">
-                                  <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                                  <CommandGroup heading="Serviços e Vacinas">
-                                    {servicos.map((s) => (
-                                      <CommandItem
-                                        key={`serv-${idx}-${s.id}`}
-                                        value={s.nome}
-                                        onSelect={() => {
-                                          updateItem(idx, 'descricao', s.nome);
-                                          updateItem(idx, 'valor_unitario', s.preco);
-                                          // Focar no campo de quantidade após seleção
-                                          setTimeout(() => quantityRefs.current[idx]?.focus(), 50);
-                                        }}
-                                        className="text-xs flex justify-between items-center py-2"
-                                      >
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{s.nome}</span>
-                                          <span className="text-[10px] text-muted-foreground uppercase">Serviço</span>
-                                        </div>
-                                        <span className="font-bold text-primary">{formatCurrency(s.preco)}</span>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                  <CommandGroup heading="Produtos e Estoque">
-                                    {produtos.map((p) => (
-                                      <CommandItem
-                                        key={`prod-${idx}-${p.id}`}
-                                        value={p.nome}
-                                        onSelect={() => {
-                                          updateItem(idx, 'descricao', `${p.nome} (${p.marca || ''})`);
-                                          updateItem(idx, 'valor_unitario', p.preco_venda);
-                                          // Focar no campo de quantidade após seleção
-                                          setTimeout(() => quantityRefs.current[idx]?.focus(), 50);
-                                        }}
-                                        className="text-xs flex justify-between items-center py-2"
-                                      >
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{p.nome}</span>
-                                          <span className="text-[10px] text-muted-foreground uppercase">{p.unidade} {p.marca ? `— ${p.marca}` : ''}</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                          <span className="font-bold text-green-600">{formatCurrency(p.preco_venda)}</span>
-                                          <span className="text-[9px] text-muted-foreground">Estoque: {p.estoque_atual}</span>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            ref={(el) => (quantityRefs.current[idx] = el)}
-                            type="number"
-                            value={item.quantidade}
-                            onChange={(e) => updateItem(idx, 'quantidade', Number(e.target.value))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                unitPriceRefs.current[idx]?.focus();
-                              }
-                            }}
-                            className="h-9 text-center bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary"
-                          />
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Input
-                            ref={(el) => (unitPriceRefs.current[idx] = el)}
-                            type="number"
-                            step="0.01"
-                            value={item.valor_unitario}
-                            onChange={(e) => updateItem(idx, 'valor_unitario', Number(e.target.value))}
-                            className="h-9 text-right bg-transparent border-transparent hover:border-muted-foreground/20 focus:border-primary"
-                            placeholder="0,00"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Tab' && idx === items.length - 1) {
-                                e.preventDefault();
-                                handleAddItem();
-                              } else if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (idx === items.length - 1) {
-                                  discountRef.current?.focus();
-                                } else {
-                                  descriptionRefs.current[idx + 1]?.focus();
-                                }
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="p-2 text-right font-bold text-sm">
-                          {formatCurrency(item.valor_total)}
-                        </TableCell>
-                        <TableCell className="p-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => setItems(items.filter((_, i) => i !== idx))} 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
-                <div className="space-y-4">
-                   <div className="space-y-1">
-                     <Label>Desconto (R$)</Label>
-                     <Input 
-                      ref={discountRef}
-                      type="number" 
-                      value={newCobranca.desconto} 
-                      onChange={e => setNewCobranca({...newCobranca, desconto: parseFloat(e.target.value) || 0})} 
-                    />
-                   </div>
-                   <div className="space-y-1">
-                     <Label>Vencimento</Label>
-                     <Input type="date" value={newCobranca.data_vencimento} onChange={e => setNewCobranca({...newCobranca, data_vencimento: e.target.value})} />
-                   </div>
-                </div>
-                <div className="space-y-4">
-                   <div className="space-y-1">
-                     <Label>Forma de Pagamento</Label>
-                     <Select value={newCobranca.forma_pagamento} onValueChange={v => setNewCobranca({...newCobranca, forma_pagamento: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                           {formaPagamentoOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                        </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-1">
-                     <Label>Status Inicial</Label>
-                     <Select value={newCobranca.status} onValueChange={v => setNewCobranca({...newCobranca, status: v as any})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="pendente">Pendente</SelectItem>
-                           <SelectItem value="pago">Pago Agora</SelectItem>
-                        </SelectContent>
-                     </Select>
-                   </div>
-                </div>
-                <div className="bg-muted/10 p-4 rounded-lg space-y-2 border">
-                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal:</span><span>{formatCurrency(items.reduce((sum, i) => sum + i.valor_total, 0))}</span></div>
-                   <div className="flex justify-between text-sm text-red-600 font-medium"><span>Desconto:</span><span>- {formatCurrency(newCobranca.desconto)}</span></div>
-                   <div className="flex justify-between text-xl font-bold border-t pt-2 mt-2"><span>Total:</span><span className="text-primary">{formatCurrency(items.reduce((sum, i) => sum + i.valor_total, 0) - newCobranca.desconto)}</span></div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Observações Internas</Label>
-                <Textarea value={newCobranca.observacoes} onChange={e => setNewCobranca({...newCobranca, observacoes: e.target.value})} rows={2} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsNewCobrancaOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSaveCobranca}>Confirmar Cobrança</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Resumo Financeiro */}

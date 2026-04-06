@@ -93,6 +93,8 @@ export default function Caixa() {
 
   const [consultasDia, setConsultasDia] = useState<any[]>([]);
   const [mensagemSaldo, setMensagemSaldo] = useState('');
+  const [vendasAvulsas, setVendasAvulsas] = useState<any[]>([]);
+  const [vendaAvulsaVinculada, setVendaAvulsaVinculada] = useState<string>('none');
 
   const fetchCaixa = async () => {
     setLoading(true);
@@ -131,6 +133,15 @@ export default function Caixa() {
         .in('status', ['concluido', 'agendado', 'confirmado'])
         .order('data_hora', { ascending: true });
       setConsultasDia(cons || []);
+
+      const { data: vendas } = await supabase
+        .from('financeiro')
+        .select('id, descricao, valor_final, forma_pagamento, tutores(nome)')
+        .eq('status', 'pago')
+        .is('consulta_id', null)
+        .gte('data_pagamento', hoje)
+        .order('criado_em', { ascending: false });
+      setVendasAvulsas(vendas || []);
     }
 
     // Buscar histórico
@@ -247,6 +258,7 @@ export default function Caixa() {
       setIsEntradaOpen(false);
       setIsSaidaOpen(false);
       setNovaMovimentacao({ descricao: '', valor: '', forma_pagamento: 'dinheiro', categoria: 'outro', observacoes: '', consulta_id: '' });
+      setVendaAvulsaVinculada('none');
       fetchCaixa();
     }
   };
@@ -290,6 +302,27 @@ export default function Caixa() {
     const { error } = await supabase.from('caixa_movimentacoes').delete().eq('id', id);
     if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     else { toast({ title: 'Movimentação excluída' }); fetchCaixa(); }
+  };
+
+  const handleSelecionarVendaAvulsa = async (financeiroId: string) => {
+    setVendaAvulsaVinculada(financeiroId);
+    
+    if (financeiroId && financeiroId !== 'none') {
+      const { data } = await supabase
+        .from('financeiro')
+        .select('valor_final, descricao, forma_pagamento, tutores(nome)')
+        .eq('id', financeiroId)
+        .single();
+      
+      if (data) {
+        setNovaMovimentacao(prev => ({
+          ...prev,
+          valor: String(data.valor_final),
+          descricao: data.descricao || prev.descricao,
+          forma_pagamento: data.forma_pagamento || prev.forma_pagamento
+        }));
+      }
+    }
   };
 
   const handleSelecionarConsulta = async (consultaId: string) => {
@@ -575,6 +608,25 @@ export default function Caixa() {
                     ))}
                   </SelectContent>
                </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Vincular Venda Avulsa (Opcional)</Label>
+              <Select 
+                value={vendaAvulsaVinculada} 
+                onValueChange={handleSelecionarVendaAvulsa}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhuma venda avulsa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma venda avulsa</SelectItem>
+                  {vendasAvulsas?.map(v => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.descricao} — R$ {v.valor_final?.toFixed(2)} ({v.tutores?.nome || 'Sem tutor'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={() => handleRegistrarMovimentacao('entrada')} className="w-full bg-green-600 hover:bg-green-700">Confirmar Entrada</Button>
           </div>

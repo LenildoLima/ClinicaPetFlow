@@ -246,14 +246,14 @@ export default function Dashboard() {
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {statCards.map((stat, idx) => (
-              <Card key={idx} className="shadow-sm">
-                <CardContent className="flex items-center gap-4 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              <Card key={idx} className="shadow-sm border-transparent bg-white/60 backdrop-blur-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm border ${stat.color}`}>
+                    <stat.icon className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                    <p className="text-sm font-medium text-slate-500">{stat.label}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -263,7 +263,7 @@ export default function Dashboard() {
           <div className="grid gap-6 md:grid-cols-[2fr_1fr] lg:grid-cols-[2fr_1fr]">
             
             {/* GRÁFICO */}
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-transparent bg-white/60 backdrop-blur-sm group">
               <CardHeader>
                 <CardTitle className="text-lg">Consultas nos últimos 7 dias</CardTitle>
               </CardHeader>
@@ -278,16 +278,22 @@ export default function Dashboard() {
                       data={graficoSemana} 
                       margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <defs>
+                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                          <stop offset="95%" stopColor="#34d399" stopOpacity={0.6}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="dia" 
-                        stroke="#888888" 
+                        stroke="#94a3b8" 
                         fontSize={11} 
                         tickLine={false} 
                         axisLine={false} 
                       />
                       <YAxis 
-                        stroke="#888888" 
+                        stroke="#94a3b8" 
                         fontSize={11} 
                         tickLine={false} 
                         axisLine={false} 
@@ -295,15 +301,15 @@ export default function Dashboard() {
                         tickFormatter={(value) => `${value}`} 
                       />
                       <Tooltip 
-                        cursor={{fill: '#f8fafc'}} 
-                        contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
+                        cursor={{fill: '#f8fafc', opacity: 0.6}} 
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'}} 
                         formatter={(value) => [`${value} consultas`, 'Total']}
                       />
                       <Bar 
                         dataKey="total" 
-                        fill="#16a34a" 
-                        radius={[4, 4, 0, 0]} 
-                        maxBarSize={60}
+                        fill="url(#colorTotal)" 
+                        radius={[6, 6, 0, 0]} 
+                        maxBarSize={50}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -312,7 +318,8 @@ export default function Dashboard() {
             </Card>
 
             {/* LISTA DE CONSULTAS */}
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-transparent bg-white/60 backdrop-blur-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none" />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Clock className="h-5 w-5 text-primary" />
@@ -327,18 +334,18 @@ export default function Dashboard() {
                 ) : (
                   <div className="space-y-3 h-[300px] overflow-auto pr-2">
                     {proximasConsultas.map((c, idx) => (
-                      <div key={idx} className="flex flex-col gap-2 rounded-lg border p-4">
+                      <div key={idx} className="flex flex-col gap-2 rounded-xl bg-white border border-slate-100 shadow-sm p-4 hover:shadow-md transition-shadow group/item">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-medium text-foreground">{c.pet_nome || 'Pet'}</p>
-                            <p className="text-sm text-muted-foreground">Tutor: {c.tutor_nome || '—'}</p>
+                            <p className="font-semibold text-slate-800">{c.pet_nome || 'Pet'}</p>
+                            <p className="text-sm text-slate-500">Tutor: {c.tutor_nome || '—'}</p>
                           </div>
-                          <span className="text-sm font-bold text-primary">
-                            {c.horario} {/* O horário já virá em pt-BR segundo o prompt */}
+                          <span className="text-sm font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            {c.horario} 
                           </span>
                         </div>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{c.tipo}</span>
+                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50 border-dashed">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{c.tipo}</span>
                           {getStatusBadge(c.status)}
                         </div>
                       </div>

@@ -94,10 +94,15 @@ export default function Estoque() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
   
-  // Filtros
+  // Filtros Produtos
   const [search, setSearch] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
   const [filterStatus, setFilterStatus] = useState('todos');
+
+  // Filtros Movimentações
+  const [movSearch, setMovSearch] = useState('');
+  const [movType, setMovType] = useState('todos');
+  const [movPeriod, setMovPeriod] = useState('todos');
 
   // Modais
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -133,7 +138,7 @@ export default function Estoque() {
             usuarios!registrado_por ( nome )
           `)
           .order('criado_em', { ascending: false })
-          .limit(50)
+          .limit(200)
       ]);
 
       if (prodRes.data) setProdutos(prodRes.data);
@@ -253,13 +258,37 @@ export default function Estoque() {
   const filteredProdutos = produtos.filter(p => {
     const matchesSearch = p.nome.toLowerCase().includes(search.toLowerCase()) || 
                          p.marca?.toLowerCase().includes(search.toLowerCase());
-    const matchesCat = filterCategoria === 'todas' || p.categoria_id === filterCategoria;
+    const matchesCat = filterCategoria === 'todas' || p.categoria_id?.toString() === filterCategoria?.toString();
     const matchesStatus = 
       filterStatus === 'todos' || 
+      (filterStatus === 'ok' && p.estoque_atual > p.estoque_minimo) ||
       (filterStatus === 'baixo' && p.estoque_atual <= p.estoque_minimo && p.estoque_atual > 0) ||
       (filterStatus === 'esgotado' && p.estoque_atual === 0);
     
     return matchesSearch && matchesCat && matchesStatus;
+  });
+
+  const filteredMovimentacoes = movimentacoes.filter(m => {
+    const term = movSearch.toLowerCase();
+    const productName = m.estoque_produtos?.nome?.toLowerCase() || '';
+    const motivo = m.motivo?.toLowerCase() || '';
+    const matchesSearch = productName.includes(term) || motivo.includes(term);
+    const matchesType = movType === 'todos' || m.tipo === movType;
+    
+    let matchesPeriod = true;
+    if (movPeriod !== 'todos') {
+      const dataMov = new Date(m.criado_em);
+      const hoje = new Date();
+      if (movPeriod === 'hoje') {
+        matchesPeriod = dataMov.toDateString() === hoje.toDateString();
+      } else if (movPeriod === 'mes') {
+        matchesPeriod = dataMov.getMonth() === hoje.getMonth() && dataMov.getFullYear() === hoje.getFullYear();
+      } else if (movPeriod === 'ano') {
+        matchesPeriod = dataMov.getFullYear() === hoje.getFullYear();
+      }
+    }
+
+    return matchesSearch && matchesType && matchesPeriod;
   });
 
   // Cálculos de Resumo
@@ -467,7 +496,42 @@ export default function Estoque() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="movimentacoes">
+        <TabsContent value="movimentacoes" className="space-y-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Buscar por produto/motivo..." value={movSearch} onChange={e => setMovSearch(e.target.value)} className="pl-9" />
+                </div>
+                <Select value={movType} onValueChange={setMovType}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><SelectValue placeholder="Tipo" /></div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Tipos</SelectItem>
+                    <SelectItem value="entrada">Entrada</SelectItem>
+                    <SelectItem value="saida">Saída</SelectItem>
+                    <SelectItem value="venda">Venda</SelectItem>
+                    <SelectItem value="ajuste">Ajuste de Inventário</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={movPeriod} onValueChange={setMovPeriod}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2"><History className="h-4 w-4 text-muted-foreground" /><SelectValue placeholder="Período" /></div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todo o Período</SelectItem>
+                    <SelectItem value="hoje">Hoje</SelectItem>
+                    <SelectItem value="mes">Este Mês</SelectItem>
+                    <SelectItem value="ano">Este Ano</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={() => { setMovSearch(''); setMovType('todos'); setMovPeriod('todos'); }}>Limpar Filtros</Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <ScrollArea className="h-[600px]">
               <table className="w-full text-sm text-left border-collapse">
@@ -501,9 +565,9 @@ export default function Estoque() {
                         </tr>
                       ))}
                     </>
-                  ) : movimentacoes.length === 0 ? (
-                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação registrada.</td></tr>
-                  ) : movimentacoes.map(m => (
+                  ) : filteredMovimentacoes.length === 0 ? (
+                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação encontrada.</td></tr>
+                  ) : filteredMovimentacoes.map(m => (
                     <tr key={m.id} className="hover:bg-muted/30">
                       <td className="p-4 text-muted-foreground">
                         {format(new Date(m.criado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}

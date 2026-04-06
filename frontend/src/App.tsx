@@ -26,6 +26,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Notificacoes from "./pages/Notificacoes";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
+import NovaCobranca from "./pages/NovaCobranca";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,11 @@ const App = () => (
             } />
 
             {/* Other Placeholders */}
+            <Route path="/financeiro/nova-cobranca" element={
+              <ProtectedRoute>
+                <AppLayout><NovaCobranca /></AppLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/financeiro" element={
               <RoleRoute allowedRoles={['admin', 'recepcionista']}>
                 <AppLayout><Financeiro /></AppLayout>
