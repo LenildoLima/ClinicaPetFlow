@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import ReactDOM from 'react-dom';
 import { useState, useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +28,9 @@ import {
   Search,
   Stethoscope,
   Receipt,
-  X
+  X,
+  History,
+  Pencil
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { ReactNode } from 'react';
@@ -271,6 +274,76 @@ function TopNavbar() {
   const filteredMenus = menus
     .filter(menu => userData && menu.roles.includes(userData.cargo));
 
+  // --- Lógica de Busca ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ type: string; id: string; title: string; subtitle?: string; color?: string }[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchPop, setShowSearchPop] = useState(false);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.length < 3) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const results = [];
+        
+        // Buscar Tutores
+        const { data: tutores } = await supabase
+          .from('tutores')
+          .select('id, nome, cpf')
+          .ilike('nome', `%${searchQuery}%`)
+          .limit(3);
+        
+        if (tutores) results.push(...tutores.map(t => ({ type: 'Tutor', id: t.id, title: t.nome, subtitle: t.cpf, color: 'text-blue-600', href: `/tutores?search=${t.nome}` })));
+
+        // Buscar Pets
+        const { data: pets } = await supabase
+          .from('pets')
+          .select('id, nome, tutores(nome)')
+          .ilike('nome', `%${searchQuery}%`)
+          .limit(3);
+        
+        if (pets) results.push(...pets.map(p => ({ 
+          type: 'Pet', 
+          id: p.id, 
+          title: p.nome, 
+          subtitle: `Tutor: ${(p.tutores as any)?.nome}`, 
+          color: 'text-red-600', 
+          href: `/pets?search=${p.nome}`,
+          historyHref: `/pets/${p.id}` 
+        })));
+
+        // Buscar Consultas/Prontuários via descrição ou data?
+        const { data: consultas } = await supabase
+          .from('consultas')
+          .select('id, descricao, data_hora, pets(nome)')
+          .ilike('descricao', `%${searchQuery}%`)
+          .limit(3);
+        
+        if (consultas) results.push(...consultas.map(c => ({ 
+          type: 'Consulta', 
+          id: c.id, 
+          title: (c.pets as any)?.nome || 'Consulta', 
+          subtitle: c.descricao || new Date(c.data_hora).toLocaleDateString(), 
+          color: 'text-green-600',
+          href: `/prontuario/${c.id}` 
+        })));
+
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Erro na busca:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-green-800 bg-green-700 shadow-lg px-2">
       <div className="flex h-16 items-center px-4 md:px-6 gap-4">
@@ -334,63 +407,144 @@ function TopNavbar() {
         </nav>
 
         {/* Busca Rápida (Desktop) */}
-        <div className="hidden lg:flex items-center relative max-w-xs w-full">
+        <div className="hidden lg:flex items-center relative max-w-xs w-full ml-4">
           <Search className="absolute left-3 h-4 w-4 text-white/50" />
           <Input 
             placeholder="Buscar tutor, pet, consulta..." 
             className="pl-9 bg-white/10 border-none focus-visible:ring-1 focus-visible:ring-white/30 h-9 text-sm text-white placeholder:text-white/40"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowSearchPop(true);
+            }}
+            onFocus={() => setShowSearchPop(true)}
           />
+
+          {showSearchPop && searchQuery.length >= 3 && (
+            <div className="absolute top-10 left-0 w-full bg-white rounded-lg shadow-xl border border-gray-100 p-1 z-[100] animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-center px-3 py-1.5 border-b border-gray-50">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Resultados da Busca</span>
+                <button onClick={() => setShowSearchPop(false)} className="text-gray-400 hover:text-gray-600">
+                   <X className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {isSearching ? (
+                  <div className="p-4 text-center text-sm text-gray-400">Pesquisando...</div>
+                ) : searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-400">Nenhum resultado encontrado</div>
+                ) : (
+                  searchResults.map((res, i) => (
+                    <div
+                      key={`${res.type}-${res.id}-${i}`}
+                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-green-50 rounded-md transition-colors text-left group"
+                    >
+                      <button 
+                        onClick={() => {
+                          navigate(res.href);
+                          setShowSearchPop(false);
+                          setSearchQuery('');
+                        }}
+                        className="flex flex-1 items-center gap-3 overflow-hidden"
+                      >
+                        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${res.color?.replace('text-', 'bg-')}/10 ${res.color} shrink-0`}>
+                          {res.type}
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <p className="text-sm font-semibold text-gray-700 truncate capitalize">{res.title}</p>
+                          {res.subtitle && <p className="text-[10px] text-gray-400 truncate">{res.subtitle}</p>}
+                        </div>
+                      </button>
+
+                      {/* Atalhos Extras */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {(res as any).historyHref && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate((res as any).historyHref);
+                              setShowSearchPop(false);
+                            }}
+                            title="Ver Consultas/Histórico"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(res.href);
+                            setShowSearchPop(false);
+                          }}
+                          title="Editar Cadastro"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Status do Caixa (Desktop) */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/30 border border-gray-200/50">
-          <div className={`h-2 w-2 rounded-full ${caixaStatus === 'aberto' ? 'bg-green-500 animate-pulse' : caixaStatus === 'fechado' ? 'bg-red-500' : 'bg-amber-500'}`} />
-          <span className="text-xs font-semibold text-foreground/80">
-            {caixaStatus === 'aberto' ? 'Caixa Aberto' : caixaStatus === 'fechado' ? 'Caixa Fechado' : 'Carregando...'}
-          </span>
-        </div>
+        {/* Right Nav Container */}
+        <div className="flex flex-1 md:flex-none justify-end items-center gap-6">
+           {/* Status do Caixa (Desktop) */}
+           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/10">
+             <div className={`h-2 w-2 rounded-full ${caixaStatus === 'aberto' ? 'bg-green-400 animate-pulse' : caixaStatus === 'fechado' ? 'bg-red-400' : 'bg-amber-400'}`} />
+             <span className="text-xs font-semibold text-white/90">
+               {caixaStatus === 'aberto' ? 'Caixa Aberto' : caixaStatus === 'fechado' ? 'Caixa Fechado' : 'Carregando...'}
+             </span>
+           </div>
 
-        {/* Relógio (Desktop) */}
-        <div className="hidden md:flex items-center gap-1.5 text-white/90 font-bold text-sm tabular-nums px-2">
-          <Clock className="h-4 w-4 text-green-200" />
-          {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </div>
-        
-        {/* Right Nav (Notificações, etc ficarão fora dessa navbar específica) */}
-        <div className="flex flex-1 md:flex-none justify-end items-center gap-2">
-           {/* placeholder para as notificações do AppLayout renderizar ao lado */}
-           <div id="navbar-actions-portal" className="flex items-center gap-2 w-full justify-end md:w-auto"></div>
-           
-           {/* Perfil (Desktop) */}
-           {userData && (
-             <DropdownMenu>
-               <DropdownMenuTrigger className="hidden md:flex items-center outline-none">
-                 <Avatar className="h-8 w-8 border hover:opacity-80 transition-opacity cursor-pointer">
-                    <AvatarImage src={userData.foto_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                      {userData.nome.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                 </Avatar>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="end" className="w-56">
-                 <div className="flex items-center justify-start gap-2 p-2">
-                   <div className="flex flex-col space-y-1 leading-none">
-                     <p className="font-medium text-sm truncate">{userData.nome}</p>
-                     <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">{formatRole(userData.cargo)}</p>
-                   </div>
-                 </div>
-                 <div className="border-t my-1"></div>
-                 <DropdownMenuItem onClick={() => navigate('/configuracoes')} className="cursor-pointer">
-                   <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
-                   <span>Configurações</span>
-                 </DropdownMenuItem>
-                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600 cursor-pointer">
-                   <LogOut className="mr-2 h-4 w-4" />
-                   <span>Sair da conta</span>
-                 </DropdownMenuItem>
-               </DropdownMenuContent>
-             </DropdownMenu>
-           )}
+           {/* Relógio (Desktop) */}
+           <div className="hidden md:flex items-center gap-1.5 text-white/90 font-bold text-sm tabular-nums px-2">
+             <Clock className="h-4 w-4 text-green-200" />
+             {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+           </div>
+
+           {/* Notificações e Perfil */}
+           <div className="flex items-center gap-4">
+              <div id="navbar-actions-portal" className="flex items-center gap-4"></div>
+              
+              {userData && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center outline-none">
+                    <Avatar className="h-9 w-9 border-2 border-white/20 hover:border-white/50 transition-all cursor-pointer shadow-md">
+                       <AvatarImage src={userData.foto_url || undefined} />
+                       <AvatarFallback className="bg-white/20 text-white text-[10px] font-bold">
+                         {userData.nome.substring(0, 2).toUpperCase()}
+                       </AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1 leading-none">
+                        <p className="font-medium text-sm truncate">{userData.nome}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">{formatRole(userData.cargo)}</p>
+                      </div>
+                    </div>
+                    <div className="border-t my-1"></div>
+                    <DropdownMenuItem onClick={() => navigate('/configuracoes')} className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600 cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair da conta</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+           </div>
         </div>
       </div>
     </header>
@@ -785,12 +939,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex flex-col bg-slate-50/50">
         <TopNavbar />
         
-        {/* Notificações injetadas usando position fixed no topo direito, ao lado do Perfil */}
-        <div className="fixed top-0 right-[4.5rem] md:right-16 z-50 h-14 flex items-center pr-2 pointer-events-none">
-             <div className="pointer-events-auto flex items-center h-full">
-              <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+        {/* Notificações injetadas via Portal para dentro da TopNavbar */}
+        {document.getElementById('navbar-actions-portal') && (
+          ReactDOM.createPortal(
+             <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
                 <PopoverTrigger asChild>
-                  <button className="relative p-2 hover:bg-white/10 rounded-full transition-colors outline-none cursor-pointer">
+                  <button className="relative p-2 hover:bg-white/10 rounded-full transition-colors outline-none cursor-pointer pointer-events-auto">
                     <Bell className={`w-5 h-5 text-white/80 transition-all ${animarSino ? 'animate-bell-shake text-yellow-300' : ''}`} />
                     {naoLidas > 0 && (
                       <span className="absolute top-1 right-1 bg-destructive text-white 
@@ -852,9 +1006,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     </button>
                   </div>
                 </PopoverContent>
-              </Popover>
-             </div>
-        </div>
+              </Popover>,
+            document.getElementById('navbar-actions-portal')!
+          )
+        )}
 
         {/* Main Content Area filling width */}
         <main className="flex-1 w-full mx-auto px-4 sm:px-6 md:px-8 py-6 pb-20 max-w-[1400px] animate-in fade-in slide-in-from-bottom-4 duration-500">

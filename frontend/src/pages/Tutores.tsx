@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,7 @@ const estadosBR = [
 ];
 
 export default function Tutores() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState<Omit<Tutor, 'id'>>(emptyForm);
@@ -111,6 +113,26 @@ export default function Tutores() {
   };
 
   useEffect(() => { fetchTutores(); }, [search]);
+
+  useEffect(() => {
+    const term = searchParams.get('search');
+    if (term) {
+      setSearch(term);
+      // Limpa para não prender o filtro se o usuário apagar manualmente
+      searchParams.delete('search');
+      setSearchParams(searchParams);
+    }
+
+    const editId = searchParams.get('edit');
+    if (editId && tutores.length > 0) {
+      const tutor = tutores.find(t => t.id === editId);
+      if (tutor) {
+        handleEdit(tutor);
+        searchParams.delete('edit');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, tutores]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

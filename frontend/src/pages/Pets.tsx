@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +65,7 @@ const sexoLabels: Record<string, string> = {
 
 export default function Pets() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pets, setPets] = useState<Pet[]>([]);
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [search, setSearch] = useState('');
@@ -96,6 +97,26 @@ export default function Pets() {
   };
 
   useEffect(() => { fetchPets(); }, [search]);
+
+  useEffect(() => {
+    const term = searchParams.get('search');
+    if (term) {
+      setSearch(term);
+      searchParams.delete('search');
+      setSearchParams(searchParams);
+    }
+
+    const editId = searchParams.get('edit');
+    if (editId && pets.length > 0) {
+      const pet = pets.find(p => p.id === editId);
+      if (pet) {
+        handleEdit(pet);
+        // Limpa o parâmetro
+        searchParams.delete('edit');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, pets]);
   useEffect(() => { fetchTutores(); }, [tutorSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
