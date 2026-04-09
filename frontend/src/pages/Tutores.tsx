@@ -5,12 +5,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Users, Pencil, Trash2 } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  Users, 
+  Pencil, 
+  Trash2,
+  Stethoscope,
+  Receipt,
+  X,
+  History
+} from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -426,38 +438,48 @@ export default function Tutores() {
               ))}
             </div>
           ) : tutores.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Users className="h-10 w-10 mb-2" />
-              <p>Nenhum tutor encontrado</p>
-            </div>
+            <EmptyState 
+              icon={Users}
+              title="Nenhum tutor encontrado"
+              description={search ? `Não encontramos resultados para "${search}". Tente outro termo.` : "Você ainda não tem tutores cadastrados. Comece adicionando um novo."}
+              action={!search && (
+                <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Novo Tutor</Button>
+              )}
+            />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Bairro</TableHead>
-                  <TableHead>Cidade</TableHead>
-                  <TableHead>Estado</TableHead>
+                <TableRow className="table-header-premium">
+                  <TableHead className="rounded-tl-xl px-4">Nome</TableHead>
+                  <TableHead className="px-4">CPF</TableHead>
+                  <TableHead className="px-4">Telefone</TableHead>
+                  <TableHead className="px-4">Bairro</TableHead>
+                  <TableHead className="px-4">Cidade</TableHead>
+                  <TableHead className="px-4">Estado</TableHead>
+                  <TableHead className="rounded-tr-xl px-4 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tutores.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-medium">{t.nome}</TableCell>
-                    <TableCell>{t.cpf}</TableCell>
-                    <TableCell>{t.telefone}</TableCell>
-                    <TableCell>{t.bairro}</TableCell>
-                    <TableCell>{t.cidade}</TableCell>
-                    <TableCell>{t.estado}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                  <TableRow key={t.id} className="table-row-premium group">
+                    <TableCell className="px-4 py-4">
+                      <div className="text-primary-vivid text-base">{t.nome}</div>
+                      <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Tutor Cadastrado</div>
+                    </TableCell>
+                    <TableCell className="px-4 text-secondary-vivid font-mono text-xs">{t.cpf || '—'}</TableCell>
+                    <TableCell className="px-4 text-secondary-vivid font-medium">{t.telefone}</TableCell>
+                    <TableCell className="px-4 text-secondary-vivid">{t.bairro || '—'}</TableCell>
+                    <TableCell className="px-4 text-secondary-vivid">{t.cidade || '—'}</TableCell>
+                    <TableCell className="px-4">
+                      <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-600 font-bold">{t.estado || '—'}</Badge>
+                    </TableCell>
+                    <TableCell className="px-4 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(t)}
-                          className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                          className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -465,7 +487,7 @@ export default function Tutores() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeleteId(t.id)}
-                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -35,12 +35,12 @@ interface Consulta {
 interface Usuario { id: string; nome: string }
 
 const statusColors: Record<string, string> = {
-  agendado: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  confirmado: 'bg-warning/20 text-warning dark:text-warning-foreground',
-  em_atendimento: 'bg-info/20 text-info dark:text-info-foreground',
-  concluido: 'bg-success/20 text-success dark:text-success-foreground',
-  cancelado: 'bg-destructive/10 text-destructive',
-  faltou: 'bg-muted text-muted-foreground',
+  agendado: 'badge-info-vivid',
+  confirmado: 'badge-warning-vivid',
+  em_atendimento: 'badge-warning-vivid',
+  concluido: 'badge-success-vivid',
+  cancelado: 'badge-danger-vivid',
+  faltou: 'bg-muted text-muted-foreground border-slate-200',
 };
 
 const statusLabels: Record<string, string> = {
@@ -417,31 +417,47 @@ export default function Agenda() {
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 table-header-premium rounded-t-lg">
+                <div className="col-span-1">Hora</div>
+                <div className="col-span-4">Paciente</div>
+                <div className="col-span-4">Detalhes do Atendimento</div>
+                <div className="col-span-3 text-right">Status / Ações</div>
+              </div>
               {consultas.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-lg font-semibold text-primary min-w-[60px]">
+                <div key={c.id} className="grid grid-cols-1 md:grid-cols-12 items-center gap-4 rounded-xl border border-slate-100 p-4 table-row-premium group transition-all">
+                  <div className="col-span-1">
+                    <span className="text-lg font-black text-primary block">
                       {new Date(c.data_hora).toLocaleTimeString('pt-BR', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         timeZone: 'America/Sao_Paulo'
                       })}
                     </span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">{format(new Date(c.data_hora), 'dd MMM', { locale: ptBR })}</span>
+                  </div>
+                  <div className="col-span-4 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/5 flex items-center justify-center text-primary font-bold border border-primary/10">
+                      {c.pets?.nome?.charAt(0) || 'P'}
+                    </div>
                     <div>
-                      <p className="font-medium text-foreground">{c.pets?.nome ?? 'Pet'}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Tutor: {c.tutores?.nome ?? '—'} • {tipoLabels[c.tipo] || c.tipo} {c.motivo && `• ${c.motivo}`}
-                      </p>
+                      <p className="text-primary-vivid text-base capitalize">{c.pets?.nome || (c.pets?.nome ?? 'Pet')}</p>
+                      <p className="text-[11px] text-secondary-vivid font-bold">{c.tutores?.nome ?? '—'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={statusColors[c.status] ?? 'bg-muted text-muted-foreground'}>
+                  <div className="col-span-4">
+                    <Badge variant="outline" className="bg-slate-50 text-[10px] font-bold uppercase tracking-tight text-slate-500 mb-1">
+                      {tipoLabels[c.tipo] || c.tipo}
+                    </Badge>
+                    <p className="text-xs text-slate-400 italic truncate max-w-[250px]">{c.motivo || 'Sem motivo detalhado'}</p>
+                  </div>
+                  <div className="col-span-3 flex items-center justify-end gap-3">
+                    <Badge className={`${statusColors[c.status]} uppercase text-[9px] tracking-wider px-2.5 py-1`}>
                       {statusLabels[c.status] ?? c.status}
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-100">
+                          <MoreVertical className="h-4 w-4 text-slate-400" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">

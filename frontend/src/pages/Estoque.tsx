@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from '@/components/EmptyState';
 import { 
   Card, CardContent, CardHeader, CardTitle, CardDescription 
 } from '@/components/ui/card';
@@ -405,13 +406,13 @@ export default function Estoque() {
             <ScrollArea className="h-[500px]">
               <div className="p-0">
                 <table className="w-full text-sm text-left border-collapse">
-                  <thead className="bg-muted/50 sticky top-0 z-10">
-                    <tr>
-                      <th className="p-4 font-semibold">Produto</th>
-                      <th className="p-4 font-semibold">Marca / Categoria</th>
-                      <th className="p-4 font-semibold text-right">Preço Venda</th>
-                      <th className="p-4 font-semibold text-center">Estoque</th>
-                      <th className="p-4 font-semibold text-center">Ações</th>
+                  <thead className="sticky top-0 z-10">
+                    <tr className="table-header-premium">
+                      <th className="p-4 rounded-tl-xl">Produto</th>
+                      <th className="p-4">Marca / Categoria</th>
+                      <th className="p-4 text-right">Preço Venda</th>
+                      <th className="p-4 text-center">Estoque</th>
+                      <th className="p-4 rounded-tr-xl text-center">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -439,56 +440,94 @@ export default function Estoque() {
                         ))}
                       </>
                     ) : filteredProdutos.length === 0 ? (
-                      <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Nenhum produto encontrado.</td></tr>
+                      <tr>
+                        <td colSpan={5} className="p-0">
+                          <EmptyState 
+                            icon={Package}
+                            title="Nenhum produto encontrado"
+                            description={search ? `Não encontramos produtos para "${search}".` : "Seu estoque está vazio. Adicione seu primeiro produto para começar."}
+                            action={!search && canManage && (
+                              <Button onClick={() => { setSelectedProduct(null); setProductForm({ unidade: 'unidade', ativo: true }); setFotoFile(null); setIsProductModalOpen(true); }}>
+                                <Plus className="mr-2 h-4 w-4" /> Novo Produto
+                              </Button>
+                            )}
+                          />
+                        </td>
+                      </tr>
                     ) : filteredProdutos.map(p => (
-                      <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                      <tr key={p.id} className="table-row-premium group transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden border">
-                              {p.foto_url ? <img src={p.foto_url} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5 text-muted-foreground" />}
+                            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                              {p.foto_url ? <img src={p.foto_url} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5 text-slate-400" />}
                             </div>
                             <div>
-                              <p className="font-semibold text-foreground">{p.nome}</p>
-                              <p className="text-xs text-muted-foreground">Cód: {p.codigo_barras || '—'}</p>
+                              <p className="text-primary-vivid text-base">{p.nome}</p>
+                              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-tight">Cód: {p.codigo_barras || '—'}</p>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <p className="text-foreground">{p.marca || '—'}</p>
-                          <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-tight">{p.estoque_categorias?.nome}</Badge>
+                          <p className="text-slate-700 font-bold">{p.marca || '—'}</p>
+                          <Badge variant="secondary" className="text-[9px] uppercase font-black bg-primary/5 text-primary border-primary/10 tracking-wider font-mono">{p.estoque_categorias?.nome}</Badge>
                         </td>
-                        <td className="p-4 text-right font-medium">R$ {p.preco_venda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="p-4 text-right">
+                          <span className="text-primary-vivid font-black text-base">R$ {p.preco_venda.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </td>
                         <td className="p-4 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="font-bold">{p.estoque_atual} {p.unidade}</span>
-                            {p.estoque_atual === 0 ? (
-                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-none px-2 shadow-none">Esgotado</Badge>
-                            ) : p.estoque_atual <= p.estoque_minimo ? (
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-none px-2 shadow-none">Baixo</Badge>
-                            ) : (
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-none px-2 shadow-none">OK</Badge>
-                            )}
+                          <div className={`inline-flex flex-col items-center px-3 py-1 rounded-lg border shadow-sm ${
+                            p.estoque_atual <= (p.estoque_minimo || 0) 
+                            ? 'bg-rose-50 border-rose-100 text-rose-700' 
+                            : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                          }`}>
+                            <span className="text-sm font-black leading-none">{p.estoque_atual}</span>
+                            <span className="text-[9px] uppercase tracking-tighter font-bold">{p.unidade}</span>
                           </div>
+                          {p.estoque_atual <= (p.estoque_minimo || 0) && (
+                            <div className="mt-1">
+                              <Badge className="badge-danger-vivid text-[8px] h-3 px-1">Baixo</Badge>
+                            </div>
+                          )}
                         </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="p-4 text-center">
+                          <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {canStockIn && (
-                              <Button variant="outline" size="sm" onClick={() => { setSelectedProduct(p); setIsStockInModalOpen(true); }} className="h-8 w-8 p-0" title="Entrada">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => { setSelectedProduct(p); setIsStockInModalOpen(true); }} 
+                                className="h-9 w-9 rounded-full border-emerald-200 hover:bg-emerald-50 text-emerald-600" 
+                                title="Entrada de Estoque"
+                              >
                                 <Plus className="h-4 w-4" />
                               </Button>
                             )}
                             {canManage && (
-                              <Button variant="ghost" size="sm" onClick={() => { setSelectedProduct(p); setProductForm(p); setIsProductModalOpen(true); }} className="h-8 w-8 p-0">
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-9 w-9 text-blue-500 hover:bg-blue-50 rounded-full"
+                                  onClick={() => { setSelectedProduct(p); setProductForm({ ...p }); setIsProductModalOpen(true); }}
+                                  title="Editar Produto"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-9 w-9 text-red-500 hover:bg-red-50 rounded-full"
+                                  onClick={() => { setSelectedProduct(p); /* Removida chamada inexistente */ }}
+                                  title="Excluir Produto"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </td>
                       </tr>
                     ))}
-                    {filteredProdutos.length === 0 && (
-                      <tr><td colSpan={5} className="p-12 text-center text-muted-foreground">Nenhum produto encontrado.</td></tr>
-                    )}
                   </tbody>
                 </table>
               </div>
@@ -566,7 +605,15 @@ export default function Estoque() {
                       ))}
                     </>
                   ) : filteredMovimentacoes.length === 0 ? (
-                    <tr><td colSpan={8} className="p-12 text-center text-muted-foreground italic">Nenhuma movimentação encontrada.</td></tr>
+                    <tr>
+                      <td colSpan={8} className="p-0">
+                        <EmptyState 
+                          icon={History}
+                          title="Nenhuma movimentação"
+                          description={movSearch ? "Nenhuma movimentação encontrada com esses filtros." : "O histórico de movimentações aparecerá aqui assim que houver entradas ou saídas."}
+                        />
+                      </td>
+                    </tr>
                   ) : filteredMovimentacoes.map(m => (
                     <tr key={m.id} className="hover:bg-muted/30">
                       <td className="p-4 text-muted-foreground">

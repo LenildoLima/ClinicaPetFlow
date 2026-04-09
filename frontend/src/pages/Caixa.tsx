@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, DollarSign, Wallet, ArrowUpCircle, ArrowDownCircle, Clock, Calendar, Lock, Unlock, Trash2, History, Receipt, AlertTriangle } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from '@/components/EmptyState';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -465,7 +467,21 @@ export default function Caixa() {
                       {loading ? (
                         <TableRow><TableCell colSpan={7} className="text-center py-8">Carregando...</TableCell></TableRow>
                       ) : movimentacoes.length === 0 ? (
-                        <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground italic">Nenhuma movimentação registrada hoje.</TableCell></TableRow>
+                        <TableRow>
+                          <TableCell colSpan={7} className="p-0">
+                            <EmptyState 
+                              icon={History}
+                              title="Nenhuma movimentação hoje"
+                              description="O fluxo de caixa aparecerá aqui conforme você registrar entradas e saídas."
+                              action={
+                                <div className="flex gap-2">
+                                  <Button onClick={() => setIsEntradaOpen(true)} className="bg-green-600 hover:bg-green-700 gap-2"><ArrowUpCircle className="h-4 w-4" /> Entrada</Button>
+                                  <Button onClick={() => setIsSaidaOpen(true)} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 gap-2"><ArrowDownCircle className="h-4 w-4" /> Saída</Button>
+                                </div>
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
                       ) : movimentacoes.map((m) => (
                         <TableRow key={m.id}>
                           <TableCell className="text-xs">{format(new Date(m.criado_em), 'HH:mm')}</TableCell>
@@ -495,11 +511,15 @@ export default function Caixa() {
               </Card>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-xl border border-dashed border-muted-foreground/30">
-              <Lock className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-              <h2 className="text-xl font-bold text-muted-foreground">O caixa está fechado</h2>
-              <p className="text-muted-foreground mb-6">Abra o caixa para começar a registrar movimentações.</p>
-              <Button onClick={() => setIsAbrirOpen(true)} size="lg" className="gap-2"><Unlock className="h-4 w-4" /> Abrir Caixa Agora</Button>
+            <div className="py-12 bg-white rounded-xl border border-slate-100 shadow-sm">
+              <EmptyState 
+                icon={Lock}
+                title="O caixa está fechado"
+                description="Abra o caixa para começar a registrar movimentações financeiras de hoje."
+                action={
+                  <Button onClick={() => setIsAbrirOpen(true)} size="lg" className="gap-2 shadow-lg hover:shadow-xl transition-all"><Unlock className="h-4 w-4" /> Abrir Caixa Agora</Button>
+                }
+              />
             </div>
           )}
         </TabsContent>

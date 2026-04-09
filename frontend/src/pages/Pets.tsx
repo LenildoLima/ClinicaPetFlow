@@ -10,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Heart, Pencil, Trash2, History } from 'lucide-react';
+import { Plus, Search, Heart, Pencil, Trash2, History, Dog, Cat, Mouse, Bird, Bug, HelpCircle } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/EmptyState';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -362,47 +364,78 @@ export default function Pets() {
               ))}
             </div>
           ) : pets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Heart className="h-10 w-10 mb-2" />
-              <p>Nenhum pet encontrado</p>
-            </div>
+            <EmptyState 
+              icon={Heart}
+              title="Nenhum pet encontrado"
+              description={search ? `Não encontramos pets com o nome "${search}". Tente buscar por outro nome.` : "Não há pets cadastrados. Que tal adicionar o primeiro agora?"}
+              action={!search && (
+                <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Novo Pet</Button>
+              )}
+            />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Espécie</TableHead>
-                  <TableHead>Raça</TableHead>
-                  <TableHead>Sexo</TableHead>
-                  <TableHead>Tutor</TableHead>
-                  <TableHead>Castrado</TableHead>
+                <TableRow className="table-header-premium">
+                  <TableHead className="rounded-tl-xl px-4">Pet</TableHead>
+                  <TableHead className="px-4">Espécie / Raça</TableHead>
+                  <TableHead className="px-4">Sexo</TableHead>
+                  <TableHead className="px-4">Tutor</TableHead>
+                  <TableHead className="px-4">Status</TableHead>
+                  <TableHead className="rounded-tr-xl px-4 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pets.map((p) => (
-                  <TableRow key={p.id} className="cursor-pointer hover:bg-gray-50/50" onClick={() => navigate(`/pets/${p.id}`)}>
-                    <TableCell className="font-medium">{p.nome}</TableCell>
-                    <TableCell>{especieLabels[p.especie] || p.especie}</TableCell>
-                    <TableCell>{p.raca}</TableCell>
-                    <TableCell>{sexoLabels[p.sexo] || p.sexo}</TableCell>
-                    <TableCell>{p.tutores?.nome ?? '—'}</TableCell>
-                    <TableCell>{p.castrado ? 'Sim' : 'Não'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  <TableRow key={p.id} className="table-row-premium group">
+                    <TableCell className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          {p.especie === 'cao' ? <Dog className="w-5 h-5" /> : 
+                           p.especie === 'gato' ? <Cat className="w-5 h-5" /> : 
+                           <Heart className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <div className="text-primary-vivid text-base capitalize">{p.nome}</div>
+                          <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Paciente Ativo</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4">
+                      <div className="text-secondary-vivid font-bold text-xs">{especieLabels[p.especie] || p.especie}</div>
+                      <div className="text-[11px] text-slate-400">{p.raca || 'Sem raça definida'}</div>
+                    </TableCell>
+                    <TableCell className="px-4">
+                      <Badge variant="outline" className={`bg-slate-50 border-slate-200 text-slate-600 font-bold ${p.sexo === 'macho' ? 'border-blue-200 text-blue-700 bg-blue-50' : p.sexo === 'femea' ? 'border-pink-200 text-pink-700 bg-pink-50' : ''}`}>
+                        {sexoLabels[p.sexo] || p.sexo}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-4">
+                      <div className="text-secondary-vivid font-medium">{p.tutores?.nome}</div>
+                    </TableCell>
+                    <TableCell className="px-4">
+                      {p.castrado ? (
+                        <Badge className="badge-success-vivid">Castrado</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-slate-400 border-slate-200">Não Castrado</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-4 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/pets/${p.id}`)}
-                          className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                          title="Ver Histórico"
+                          onClick={() => navigate(`/pets/${p.id}/historico`)}
+                          className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+                          title="Ver Histórico/Prontuário"
                         >
                           <History className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEdit(p)}
-                          className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => { setForm({ ...p, tutor_id: p.tutor_id }); setEditingId(p.id); setOpen(true); }}
+                          className="h-9 w-9 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-full"
+                          title="Editar Cadastro"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -410,7 +443,8 @@ export default function Pets() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeleteId(p.id)}
-                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full"
+                          title="Excluir Pet"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

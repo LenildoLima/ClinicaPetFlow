@@ -30,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from '@/components/EmptyState';
 
 interface FinanceiroItem {
   id?: string;
@@ -567,47 +568,77 @@ export default function Financeiro() {
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Tutor</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Valor Final</TableHead>
-                <TableHead>Pagamento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+            <TableHeader>
+              <TableRow className="table-header-premium">
+                <TableHead className="rounded-tl-xl px-4">Data</TableHead>
+                <TableHead className="px-4">Tutor / Descrição</TableHead>
+                <TableHead className="px-4 text-right">Valor Final</TableHead>
+                <TableHead className="px-4">Pagamento</TableHead>
+                <TableHead className="px-4 text-center">Status</TableHead>
+                <TableHead className="rounded-tr-xl px-4 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8">Carregando...</TableCell></TableRow>
               ) : cobrancasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma cobrança encontrada.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={7} className="p-0">
+                    <EmptyState 
+                      icon={DollarSign}
+                      title="Nenhuma cobrança encontrada"
+                      description={searchTutor ? `Não encontramos registros para o termo "${searchTutor}".` : "O histórico financeiro aparecerá aqui conforme você realizar vendas e cobranças."}
+                      action={!searchTutor && (
+                        <Button onClick={() => navigate('/financeiro/nova-cobranca')} className="gap-2"><Plus className="h-4 w-4" /> Nova Cobrança</Button>
+                      )}
+                    />
+                  </TableCell>
+                </TableRow>
               ) : cobrancasFiltradas.map((c) => (
-                <TableRow key={c.id} className="group transition-colors hover:bg-muted/30">
-                  <TableCell className="text-sm font-medium">
-                    {format(new Date(c.criado_em), 'dd/MM/yyyy HH:mm')}
+                <TableRow key={c.id} className="table-row-premium group">
+                  <TableCell className="px-4 py-4">
+                    <div className="text-primary-vivid font-bold">{format(new Date(c.criado_em), 'dd/MM/yyyy')}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">{format(new Date(c.criado_em), 'HH:mm')}</div>
                   </TableCell>
-                  <TableCell>
-                    <div className="font-semibold">{c.tutores?.nome}</div>
-                    <div className="text-[10px] text-muted-foreground">{c.tutores?.telefone}</div>
+                  <TableCell className="px-4">
+                    <div className="text-primary-vivid text-sm">{c.tutores?.nome || '—'}</div>
+                    <div className="text-[11px] text-slate-400 italic truncate max-w-[200px]">{c.descricao || 'Sem descrição'}</div>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={c.descricao}>{c.descricao}</TableCell>
-                  <TableCell className="font-bold text-foreground">{formatCurrency(c.valor_final || (c.valor_total - c.desconto))}</TableCell>
-                  <TableCell className="text-xs">{getFormaPagamentoLabel(c.forma_pagamento)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`${statusColors[c.status]} px-2 py-0`}>
-                      {statusLabels[c.status] || c.status}
+                  <TableCell className="px-4 text-right">
+                    <span className="text-primary-vivid font-black text-base">R$ {(c.valor_final || (c.valor_total - (c.desconto || 0))).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </TableCell>
+                  <TableCell className="px-4">
+                    <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-tight">
+                      {formaPagamentoOptions.find(opt => opt.value === c.forma_pagamento)?.label || c.forma_pagamento}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <TableCell className="px-4 text-center">
+                    <Badge className={`
+                      ${c.status === 'pago' ? 'badge-success-vivid' : 
+                        c.status === 'cancelado' ? 'badge-danger-vivid' : 
+                        c.status === 'pendente' ? 'badge-warning-vivid' : 
+                        'badge-info-vivid'}
+                      uppercase text-[9px] tracking-wider
+                    `}>
+                      {c.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 text-right">
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setSelectedCobranca(c); setIsDetailOpen(true); }}
+                        className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+                        title="Ver Detalhes"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {c.status === 'rascunho' && (
-                        <Button variant="outline" size="sm" className="h-8 gap-1 text-primary border-primary/20 hover:bg-primary/5" onClick={() => { setSelectedCobranca(c); setIsReviewOpen(true); }}>
-                          <ArrowRight className="h-3 w-3" /> Revisar
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-primary/5 rounded-full" onClick={() => { setSelectedCobranca(c); setIsReviewOpen(true); }}>
+                          <ArrowRight className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver Detalhes" onClick={() => { setSelectedCobranca(c); setIsDetailOpen(true); }}><Eye className="h-4 w-4" /></Button>
                       {c.status === 'pendente' && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" title="Registrar Pagamento" onClick={() => { setSelectedCobranca(c); setIsPaymentOpen(true); }}><CheckCircle2 className="h-4 w-4" /></Button>
                       )}
