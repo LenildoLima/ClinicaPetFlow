@@ -63,3 +63,20 @@
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
+
+@layer utilities {
+  @keyframes bell-shake {
+    0% { transform: rotate(0); }
+    15% { transform: rotate(10deg); }
+    30% { transform: rotate(-10deg); }
+    45% { transform: rotate(5deg); }
+    60% { transform: rotate(-5deg); }
+    75% { transform: rotate(2deg); }
+    85% { transform: rotate(-2deg); }
+    100% { transform: rotate(0); }
+  }
+
+  .animate-bell-shake {
+    animation: bell-shake 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+}

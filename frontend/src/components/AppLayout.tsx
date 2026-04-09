@@ -10,6 +10,7 @@ import {
   LayoutDashboard, 
   Heart, 
   Calendar, 
+  CalendarCheck,
   LogOut, 
   Users, 
   Settings, 
@@ -21,12 +22,17 @@ import {
   Tag, 
   FileBarChart,
   Menu,
-  ChevronDown
+  ChevronDown,
+  Clock,
+  Search,
+  Stethoscope,
+  Receipt,
+  X
 } from 'lucide-react';
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { X } from 'lucide-react';
+
 import { useNotificacoes, Notificacao } from '@/hooks/useNotificacoes';
 import {
   DropdownMenu,
@@ -36,63 +42,60 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-interface NavItem {
-  title: string;
-  url: string;
-  icon: any;
-  roles: string[];
-}
 
-interface NavGroup {
-  label: string;
-  roles: string[];
-  items: NavItem[];
-}
 
-const navGroups: NavGroup[] = [
-  {
-    label: 'GERAL',
+const menus = [
+  { 
+    label: 'Dashboard', 
+    icon: LayoutDashboard,
+    href: '/',
     roles: ['admin'],
-    items: [
-      { title: 'Dashboard', url: '/', icon: LayoutDashboard, roles: ['admin'] },
-    ],
+    color: 'text-purple-600'
   },
-  {
-    label: 'ATENDIMENTO',
+  { 
+    label: 'Atendimento', 
+    icon: Stethoscope,
     roles: ['admin', 'veterinario', 'recepcionista'],
+    color: 'text-blue-600',
     items: [
-      { title: 'Agenda', url: '/agenda', icon: Calendar, roles: ['admin', 'recepcionista'] },
-      { title: 'Minha Agenda', url: '/minha-agenda', icon: Calendar, roles: ['veterinario'] },
-      { title: 'Tutores', url: '/tutores', icon: Users, roles: ['admin', 'recepcionista'] },
-      { title: 'Pets', url: '/pets', icon: Heart, roles: ['admin', 'veterinario', 'recepcionista'] },
-      { title: 'Prontuários', url: '/prontuarios', icon: FileText, roles: ['admin', 'veterinario'] },
-    ],
+      { label: 'Agenda', icon: Calendar, href: '/agenda', color: 'text-green-600' },
+      { label: 'Tutores', icon: Users, href: '/tutores', color: 'text-blue-600' },
+      { label: 'Pets', icon: Heart, href: '/pets', color: 'text-red-600' },
+      { label: 'Prontuários', icon: FileText, href: '/prontuarios', color: 'text-gray-600' },
+    ]
   },
-  {
-    label: 'FINANCEIRO',
+  { 
+    label: 'Financeiro', 
+    icon: DollarSign,
     roles: ['admin', 'recepcionista'],
+    color: 'text-green-600',
     items: [
-      { title: 'Financeiro', url: '/financeiro', icon: DollarSign, roles: ['admin', 'recepcionista'] },
-      { title: 'Caixa', url: '/caixa', icon: Landmark, roles: ['admin', 'recepcionista'] },
-      { title: 'Relatórios', url: '/relatorios', icon: FileBarChart, roles: ['admin'] },
-    ],
+      { label: 'Financeiro', icon: Receipt, href: '/financeiro', color: 'text-green-600' },
+      { label: 'Caixa', icon: Landmark, href: '/caixa', color: 'text-blue-600' },
+      { label: 'Relatórios', icon: FileBarChart, href: '/relatorios', color: 'text-purple-600' },
+    ]
   },
-  {
-    label: 'ESTOQUE',
+  { 
+    label: 'Estoque', 
+    icon: Package,
     roles: ['admin', 'recepcionista'],
+    color: 'text-orange-600',
     items: [
-      { title: 'Estoque', url: '/estoque', icon: Package, roles: ['admin', 'recepcionista'] },
-      { title: 'Serviços', url: '/servicos', icon: Tag, roles: ['admin'] },
-    ],
+      { label: 'Estoque', icon: Package, href: '/estoque', color: 'text-orange-600' },
+      { label: 'Serviços', icon: Tag, href: '/servicos', color: 'text-pink-600' },
+    ]
   },
-  {
-    label: 'SISTEMA',
+  { 
+    label: 'Sistema', 
+    icon: Settings,
     roles: ['admin', 'veterinario', 'recepcionista'],
+    color: 'text-gray-600',
     items: [
-      { title: 'Notificações', url: '/notificacoes', icon: Bell, roles: ['admin', 'veterinario', 'recepcionista'] },
-      { title: 'Configurações', url: '/configuracoes', icon: Settings, roles: ['admin', 'veterinario', 'recepcionista'] },
-    ],
+      { label: 'Notificações', icon: Bell, href: '/notificacoes', color: 'text-yellow-600' },
+      { label: 'Configurações', icon: Settings, href: '/configuracoes', color: 'text-gray-600' },
+    ]
   },
 ];
 
@@ -105,100 +108,110 @@ const formatRole = (role: string) => {
   return roles[role] || role;
 };
 
-function TopNavbar() {
-  const { signOut, userData } = useAuth();
-  const navigate = useNavigate();
+const NavContent = ({ mobile = false, filteredMenus, closeMobileMenu }: any) => {
   const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
-
-  const filteredGroups = navGroups
-    .map(group => ({
-      ...group,
-      items: group.items.filter(item => userData && item.roles.includes(userData.cargo)),
-    }))
-    .filter(group => group.items.length > 0);
-
-  const NavContent = ({ mobile = false }) => (
+  return (
     <>
-      {filteredGroups.map((group) => {
+      {filteredMenus.map((menu: any) => {
         // Se for MOBILE, exibe como lista estendida
         if (mobile) {
           return (
-            <div key={group.label} className="py-2">
-              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">
-                {group.label}
-              </h4>
+            <div key={menu.label} className="py-2">
+              <div className={`flex items-center gap-2 px-2 mb-2 ${menu.color}`}>
+                <menu.icon className="w-5 h-5" />
+                <h4 className="text-[10px] font-bold uppercase tracking-widest">
+                  {menu.label}
+                </h4>
+              </div>
               <div className="space-y-1">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
-                  return (
-                    <RouterNavLink
-                      key={item.title}
-                      to={item.url}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                        isActive 
-                          ? 'bg-primary/10 text-primary font-medium' 
-                          : 'text-foreground/70 hover:bg-muted hover:text-foreground'
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.title}
-                    </RouterNavLink>
-                  );
-                })}
+                {menu.items ? (
+                  menu.items.map((item: any) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <RouterNavLink
+                        key={item.label}
+                        to={item.href}
+                        onClick={closeMobileMenu}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                          isActive 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'text-foreground/70 hover:bg-green-100/50 hover:text-foreground'
+                        }`}
+                      >
+                        <item.icon className={`h-5 w-5 ${item.color}`} />
+                        {item.label}
+                      </RouterNavLink>
+                    );
+                  })
+                ) : (
+                  <RouterNavLink
+                    to={menu.href || '#'}
+                    onClick={closeMobileMenu}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                      location.pathname === menu.href 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'text-foreground/70 hover:bg-green-100/50 hover:text-foreground'
+                    }`}
+                  >
+                    <menu.icon className={`h-5 w-5 ${menu.color}`} />
+                    {menu.label}
+                  </RouterNavLink>
+                )}
               </div>
             </div>
           );
         }
 
-        // Se for DESKTOP e tiver apenas 1 item (ex: Dashboard), renderiza limpo
-        if (group.items.length === 1 && group.label === 'GERAL') {
-          const item = group.items[0];
-          const isActive = location.pathname === item.url;
+        // Se for DESKTOP e NÃO tiver sub-itens (ex: Dashboard)
+        if (!menu.items) {
+          const isActive = location.pathname === menu.href;
           return (
             <RouterNavLink
-              key={item.title}
-              to={item.url}
+              key={menu.label}
+              to={menu.href || '#'}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
                 isActive 
-                  ? 'bg-primary/10 text-primary font-medium' 
-                  : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+                  ? 'bg-white/20 text-white font-medium shadow-sm' 
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <item.icon className="h-4 w-4" />
-              {item.title}
+              <menu.icon className="w-5 h-5 text-white" />
+              <span className="font-medium">{menu.label}</span>
             </RouterNavLink>
           );
         }
 
         // Se for DESKTOP e tiver múltiplos itens, usa DropdownMenu
-        const isActiveGroup = group.items.some(item => location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url)));
+        const isActiveGroup = menu.items.some((item: any) => location.pathname === item.href);
         
         return (
-          <DropdownMenu key={group.label}>
-            <DropdownMenuTrigger className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors outline-none cursor-pointer ${
-              isActiveGroup 
-                ? 'bg-primary/10 text-primary font-medium' 
-                : 'text-foreground/70 hover:bg-muted hover:text-foreground'
-            }`}>
-              {group.label}
-              <ChevronDown className="h-3 w-3 opacity-50" />
+          <DropdownMenu key={menu.label}>
+            <DropdownMenuTrigger asChild>
+              <button className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors outline-none cursor-pointer ${
+                isActiveGroup 
+                  ? 'bg-white/20 text-white font-medium shadow-sm' 
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+              }`}>
+                <menu.icon className="w-5 h-5 text-white" />
+                <span className="font-medium">{menu.label}</span>
+                <ChevronDown className="w-4 h-4 ml-1 opacity-70" />
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              {group.items.map((item) => (
-                <DropdownMenuItem key={item.title} asChild>
+            <DropdownMenuContent align="start" className="w-56 p-1 bg-white shadow-xl border-green-100 z-[100]">
+              <div className="px-2 py-1.5 mb-1 border-b border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{menu.label}</p>
+              </div>
+              {menu.items.map((item: any) => (
+                <DropdownMenuItem key={item.label} asChild className="hover:bg-green-50 focus:bg-green-50 cursor-pointer rounded-md">
                   <RouterNavLink
-                    to={item.url}
-                    className="flex items-center gap-2 w-full cursor-pointer"
+                    to={item.href}
+                    className="flex items-center gap-3 px-2 py-2 w-full"
                   >
-                    <item.icon className="h-4 w-4 text-muted-foreground opacity-70" />
-                    {item.title}
+                    <div className={`p-1 rounded-md bg-opacity-10 ${item.color.replace('text-', 'bg-')}`}>
+                      <item.icon className={`h-4 w-4 ${item.color}`} />
+                    </div>
+                    <span className="font-medium text-gray-700">{item.label}</span>
                   </RouterNavLink>
                 </DropdownMenuItem>
               ))}
@@ -208,10 +221,59 @@ function TopNavbar() {
       })}
     </>
   );
+};
+
+function TopNavbar() {
+  const { signOut, userData } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [caixaStatus, setCaixaStatus] = useState<'aberto' | 'fechado' | 'carregando'>('carregando');
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fetchCaixaStatus = async () => {
+    const { data } = await supabase
+      .from('caixa')
+      .select('status')
+      .eq('status', 'aberto')
+      .limit(1)
+      .maybeSingle();
+    
+    setCaixaStatus(data ? 'aberto' : 'fechado');
+  };
+
+  useEffect(() => {
+    fetchCaixaStatus();
+
+    // Ouvir mudanças no status do caixa
+    const channel = supabase
+      .channel('header-caixa-status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'caixa' }, () => {
+        fetchCaixaStatus();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
+  const filteredMenus = menus
+    .filter(menu => userData && menu.roles.includes(userData.cargo));
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-gray-200/50 bg-white/70 backdrop-blur-md shadow-sm">
-      <div className="flex h-14 items-center px-4 md:px-6 gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-green-800 bg-green-700 shadow-lg px-2">
+      <div className="flex h-16 items-center px-4 md:px-6 gap-4">
         {/* Mobile Nav Trigger */}
         <div className="md:hidden">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -222,14 +284,14 @@ function TopNavbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <div className="p-4 border-b flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <PawPrint className="h-4 w-4 text-primary-foreground" />
+              <div className="p-4 border-b flex items-center gap-2 bg-green-50/50">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 shadow-inner">
+                  <PawPrint className="h-5 w-5 text-orange-500" />
                 </div>
-                <span className="text-lg font-bold text-foreground">PetFlow</span>
+                <span className="text-xl font-black text-green-800 tracking-tight">PetFlow</span>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                 <NavContent mobile={true} />
+                 <NavContent mobile={true} filteredMenus={filteredMenus} closeMobileMenu={() => setIsMobileMenuOpen(false)} />
               </div>
               {userData && (
                  <div className="p-4 border-t bg-muted/30">
@@ -259,17 +321,40 @@ function TopNavbar() {
         </div>
 
         {/* Logo (Desktop) */}
-        <RouterNavLink to="/" className="hidden md:flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <PawPrint className="h-4 w-4 text-primary-foreground" />
+        <RouterNavLink to="/" className="hidden md:flex items-center gap-2 mr-6 hover:opacity-90 transition-opacity p-1.5 rounded-xl bg-green-50/10">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 shadow-inner">
+            <PawPrint className="h-5 w-5 text-orange-500" />
           </div>
-          <span className="text-lg font-bold text-foreground tracking-tight">PetFlow</span>
+          <span className="text-xl font-black text-white tracking-tight drop-shadow-sm">PetFlow</span>
         </RouterNavLink>
 
         {/* Main Nav (Desktop) */}
         <nav className="hidden md:flex items-center space-x-1 flex-1">
-          <NavContent />
+          <NavContent filteredMenus={filteredMenus} />
         </nav>
+
+        {/* Busca Rápida (Desktop) */}
+        <div className="hidden lg:flex items-center relative max-w-xs w-full">
+          <Search className="absolute left-3 h-4 w-4 text-white/50" />
+          <Input 
+            placeholder="Buscar tutor, pet, consulta..." 
+            className="pl-9 bg-white/10 border-none focus-visible:ring-1 focus-visible:ring-white/30 h-9 text-sm text-white placeholder:text-white/40"
+          />
+        </div>
+
+        {/* Status do Caixa (Desktop) */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/30 border border-gray-200/50">
+          <div className={`h-2 w-2 rounded-full ${caixaStatus === 'aberto' ? 'bg-green-500 animate-pulse' : caixaStatus === 'fechado' ? 'bg-red-500' : 'bg-amber-500'}`} />
+          <span className="text-xs font-semibold text-foreground/80">
+            {caixaStatus === 'aberto' ? 'Caixa Aberto' : caixaStatus === 'fechado' ? 'Caixa Fechado' : 'Carregando...'}
+          </span>
+        </div>
+
+        {/* Relógio (Desktop) */}
+        <div className="hidden md:flex items-center gap-1.5 text-white/90 font-bold text-sm tabular-nums px-2">
+          <Clock className="h-4 w-4 text-green-200" />
+          {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </div>
         
         {/* Right Nav (Notificações, etc ficarão fora dessa navbar específica) */}
         <div className="flex flex-1 md:flex-none justify-end items-center gap-2">
@@ -426,7 +511,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               }`,
               icone: '📅',
               tipo: 'consulta',
-              link: meuCargo === 'admin' ? '/agenda' : '/minha-agenda',
+              link: '/agenda',
               consulta_id: consulta.id
             });
           }
@@ -471,7 +556,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 mensagem: `Consulta de ${(infoExtra as any)?.pets?.nome || 'atendimento'} (${(infoExtra as any)?.tutores?.nome || 'Tutor'}) foi ${statusLabel[nova.status]}`,
                 icone: '🔄',
                 tipo: 'consulta',
-                link: meuCargo === 'admin' ? '/agenda' : '/minha-agenda'
+                link: '/agenda'
               });
             }
           }
@@ -674,6 +759,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
   };
 
+  const [animarSino, setAnimarSino] = useState(false);
+
+  useEffect(() => {
+    if (naoLidas > 0) {
+      setAnimarSino(true);
+      const timer = setTimeout(() => setAnimarSino(false), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [naoLidas]);
+
   const handleClickNotificacao = (notif: Notificacao) => {
     marcarLida(notif.id);
     setPopoverAberto(false);
@@ -695,11 +790,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
              <div className="pointer-events-auto flex items-center h-full">
               <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
                 <PopoverTrigger asChild>
-                  <button className="relative p-2 hover:bg-muted rounded-full transition-colors outline-none cursor-pointer">
-                    <Bell className="w-5 h-5 text-muted-foreground" />
+                  <button className="relative p-2 hover:bg-white/10 rounded-full transition-colors outline-none cursor-pointer">
+                    <Bell className={`w-5 h-5 text-white/80 transition-all ${animarSino ? 'animate-bell-shake text-yellow-300' : ''}`} />
                     {naoLidas > 0 && (
-                      <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground 
-                        text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-background">
+                      <span className="absolute top-1 right-1 bg-destructive text-white 
+                        text-[10px] font-bold rounded-full min-w-[1.1rem] h-4.5 flex items-center justify-center 
+                        border-2 border-background shadow-sm px-1">
                         {naoLidas}
                       </span>
                     )}
