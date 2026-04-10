@@ -104,7 +104,7 @@ const estadosBR = [
 export default function Tutores() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tutores, setTutores] = useState<Tutor[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [form, setForm] = useState<Omit<Tutor, 'id'>>(emptyForm);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -112,27 +112,30 @@ export default function Tutores() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchTutores = async () => {
+  const fetchTutores = async (ignore = false) => {
     setLoading(true);
     try {
       let query = supabase.from('tutores').select('*').order('nome');
-      if (search) query = query.ilike('nome', `%${search}%`);
+      if (search.trim()) {
+        query = query.ilike('nome', `%${search.trim()}%`);
+      }
       const { data } = await query;
-      setTutores(data ?? []);
+      if (!ignore) setTutores(data ?? []);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 
-  useEffect(() => { fetchTutores(); }, [search]);
+  useEffect(() => { 
+    let ignore = false;
+    fetchTutores(ignore); 
+    return () => { ignore = true; };
+  }, [search]);
 
   useEffect(() => {
     const term = searchParams.get('search');
-    if (term) {
+    if (term && term !== search) {
       setSearch(term);
-      // Limpa para não prender o filtro se o usuário apagar manualmente
-      searchParams.delete('search');
-      setSearchParams(searchParams);
     }
 
     const editId = searchParams.get('edit');
@@ -140,11 +143,12 @@ export default function Tutores() {
       const tutor = tutores.find(t => t.id === editId);
       if (tutor) {
         handleEdit(tutor);
-        searchParams.delete('edit');
-        setSearchParams(searchParams);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('edit');
+        setSearchParams(newParams, { replace: true });
       }
     }
-  }, [searchParams, tutores]);
+  }, [searchParams, tutores.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -463,8 +467,13 @@ export default function Tutores() {
                 {tutores.map((t) => (
                   <TableRow key={t.id} className="table-row-premium group">
                     <TableCell className="px-4 py-4">
-                      <div className="text-primary-vivid text-base">{t.nome}</div>
-                      <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Tutor Cadastrado</div>
+                      <button 
+                        onClick={() => handleEdit(t)}
+                        className="text-left hover:opacity-80 transition-opacity"
+                      >
+                        <div className="text-primary-vivid text-base">{t.nome}</div>
+                        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Tutor Cadastrado</div>
+                      </button>
                     </TableCell>
                     <TableCell className="px-4 text-secondary-vivid font-mono text-xs">{t.cpf || '—'}</TableCell>
                     <TableCell className="px-4 text-secondary-vivid font-medium">{t.telefone}</TableCell>

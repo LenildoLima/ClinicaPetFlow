@@ -70,7 +70,7 @@ export default function Pets() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [pets, setPets] = useState<Pet[]>([]);
   const [tutores, setTutores] = useState<Tutor[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [tutorSearch, setTutorSearch] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
@@ -79,15 +79,17 @@ export default function Pets() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchPets = async () => {
+  const fetchPets = async (ignore = false) => {
     setLoading(true);
     try {
       let query = supabase.from('pets').select('*, tutores(nome)').order('nome');
-      if (search) query = query.ilike('nome', `%${search}%`);
+      if (search.trim()) {
+        query = query.ilike('nome', `%${search.trim()}%`);
+      }
       const { data } = await query;
-      setPets((data as unknown as Pet[]) ?? []);
+      if (!ignore) setPets((data as unknown as Pet[]) ?? []);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 
@@ -98,14 +100,16 @@ export default function Pets() {
     setTutores(data ?? []);
   };
 
-  useEffect(() => { fetchPets(); }, [search]);
+  useEffect(() => { 
+    let ignore = false;
+    fetchPets(ignore); 
+    return () => { ignore = true; };
+  }, [search]);
 
   useEffect(() => {
     const term = searchParams.get('search');
-    if (term) {
+    if (term && term !== search) {
       setSearch(term);
-      searchParams.delete('search');
-      setSearchParams(searchParams);
     }
 
     const editId = searchParams.get('edit');
@@ -113,12 +117,12 @@ export default function Pets() {
       const pet = pets.find(p => p.id === editId);
       if (pet) {
         handleEdit(pet);
-        // Limpa o parâmetro
-        searchParams.delete('edit');
-        setSearchParams(searchParams);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('edit');
+        setSearchParams(newParams, { replace: true });
       }
     }
-  }, [searchParams, pets]);
+  }, [searchParams, pets.length]);
   useEffect(() => { fetchTutores(); }, [tutorSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -394,10 +398,13 @@ export default function Pets() {
                            p.especie === 'gato' ? <Cat className="w-5 h-5" /> : 
                            <Heart className="w-5 h-5" />}
                         </div>
-                        <div>
+                        <button 
+                          onClick={() => navigate(`/pets/${p.id}`)}
+                          className="text-left hover:opacity-80 transition-opacity"
+                        >
                           <div className="text-primary-vivid text-base capitalize">{p.nome}</div>
                           <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Paciente Ativo</div>
-                        </div>
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell className="px-4">
@@ -424,7 +431,7 @@ export default function Pets() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/pets/${p.id}/historico`)}
+                          onClick={() => navigate(`/pets/${p.id}`)}
                           className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
                           title="Ver Histórico/Prontuário"
                         >

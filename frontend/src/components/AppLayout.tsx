@@ -276,7 +276,7 @@ function TopNavbar() {
 
   // --- Lógica de Busca ---
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ type: string; id: string; title: string; subtitle?: string; color?: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ type: string; id: string; title: string; subtitle?: string; color?: string; href: string; editHref?: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchPop, setShowSearchPop] = useState(false);
 
@@ -314,7 +314,7 @@ function TopNavbar() {
           subtitle: `Tutor: ${(p.tutores as any)?.nome}`, 
           color: 'text-red-600', 
           href: `/pets?search=${p.nome}`,
-          historyHref: `/pets/${p.id}` 
+          editHref: `/pets?search=${p.nome}` 
         })));
 
         // Buscar Consultas/Prontuários via descrição ou data?
@@ -458,28 +458,13 @@ function TopNavbar() {
 
                       {/* Atalhos Extras */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {(res as any).historyHref && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-purple-600 hover:text-purple-700 hover:bg-purple-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate((res as any).historyHref);
-                              setShowSearchPop(false);
-                            }}
-                            title="Ver Consultas/Histórico"
-                          >
-                            <History className="h-4 w-4" />
-                          </Button>
-                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-100"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(res.href);
+                            navigate((res as any).editHref || res.href);
                             setShowSearchPop(false);
                           }}
                           title="Editar Cadastro"
