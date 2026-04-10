@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Calendar, Package, Stethoscope, FileBarChart, Loader2 } from 'lucide-react';
+import { DollarSign, Calendar, Package, Stethoscope, FileBarChart, Loader2, Activity } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -393,6 +393,228 @@ async function gerarRelatorioVeterinarios(mes: number, ano: number, toast: any) 
   doc.save(`relatorio-veterinarios-${nomeMes.toLowerCase()}-${ano}.pdf`);
 }
 
+async function gerarRelatorioEpidemiologico(dataInicio: string, dataFim: string, especieFiltro: string, toast: any) {
+  // Buscar prontuários do período
+  const { data: prontuarios, error } = await supabase
+    .from('prontuarios')
+    .select(`
+      id,
+      diagnostico,
+      hipotese_diagnostica,
+      queixa_principal,
+      data_atendimento,
+      pets (
+        nome,
+        especie,
+        raca
+      ),
+      usuarios (nome)
+    `)
+    .gte('data_atendimento', dataInicio)
+    .lte('data_atendimento', dataFim)
+    .not('diagnostico', 'is', null)
+    .order('data_atendimento', { ascending: false });
+
+  if (error) {
+    toast({ title: 'Erro ao buscar dados', description: error.message, variant: 'destructive' });
+    return null;
+  }
+
+  // Filtrar por espécie se selecionada
+  const prontuariosFiltrados = especieFiltro !== 'todos'
+    ? prontuarios?.filter(p => p.pets?.especie === especieFiltro)
+    : prontuarios;
+
+  // Contar diagnósticos mais frequentes
+  const contagem: Record<string, number> = {};
+  prontuariosFiltrados?.forEach(p => {
+    const diag = p.diagnostico?.trim();
+    if (diag) {
+      contagem[diag] = (contagem[diag] || 0) + 1;
+    }
+  });
+
+  // Ordenar por frequência
+  const ranking = Object.entries(contagem)
+    .sort((a, b) => b[1] - a[1])
+    .map(([diagnostico, casos], i) => ({
+      posicao: i + 1,
+      diagnostico,
+      casos,
+      percentual: ((casos / (prontuariosFiltrados?.length || 1)) * 100).toFixed(1)
+    }));
+
+  // Contar por espécie
+  const porEspecie: Record<string, number> = {};
+  prontuariosFiltrados?.forEach(p => {
+    const esp = p.pets?.especie || 'outro';
+    porEspecie[esp] = (porEspecie[esp] || 0) + 1;
+  });
+
+  return { prontuariosFiltrados, ranking, porEspecie };
+}
+
+async function gerarPDFEpidemiologico(dataInicio: string, dataFim: string, especieFiltro: string, toast: any) {
+  const result = await gerarRelatorioEpidemiologico(dataInicio, dataFim, especieFiltro, toast);
+  if (!result) return;
+  const { prontuariosFiltrados, ranking, porEspecie } = result;
+  
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Cabeçalho roxo
+  doc.setFillColor(124, 58, 237); // roxo
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PetFlow - Relatório Epidemiológico', pageWidth / 2, 18, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text(
+    `Período: ${new Date(dataInicio).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a ${new Date(dataFim).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`,
+    pageWidth / 2, 30, { align: 'center' }
+  );
+
+  // Resumo geral
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESUMO GERAL', 14, 55);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Total de atendimentos analisados: ${prontuariosFiltrados?.length || 0}`, 14, 63);
+  doc.text(`Período analisado: ${dataInicio} a ${dataFim}`, 14, 70);
+  doc.text(`Espécie filtrada: ${especieFiltro === 'todos' ? 'Todas' : especieFiltro}`, 14, 77);
+
+  // Distribuição por espécie
+  let y = 90;
+  doc.setFont('helvetica', 'bold');
+  doc.text('DISTRIBUIÇÃO POR ESPÉCIE', 14, y);
+  
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  const especieLabel: Record<string, string> = {
+    cao: 'Cão', gato: 'Gato', passaro: 'Pássaro',
+    roedor: 'Roedor', reptil: 'Réptil', outro: 'Outro'
+  }
+  Object.entries(porEspecie).forEach(([esp, total]) => {
+    doc.text(`${especieLabel[esp] || esp}: ${total} atendimentos`, 14, y);
+    y += 7;
+  });
+
+  // Linha separadora
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, y + 3, pageWidth - 14, y + 3);
+  y += 10;
+
+  // Ranking de diagnósticos
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('RANKING DE DIAGNÓSTICOS MAIS FREQUENTES', 14, y);
+  y += 10;
+
+  // Cabeçalho da tabela
+  doc.setFillColor(124, 58, 237);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.text('#', 17, y);
+  doc.text('Diagnóstico', 28, y);
+  doc.text('Casos', 140, y);
+  doc.text('%', 165, y);
+
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+
+  ranking.forEach((item, i) => {
+    y = checkPage(doc, y);
+
+    // Linhas alternadas
+    if (i % 2 === 0) {
+      doc.setFillColor(245, 243, 255); // roxo bem claro
+      doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+    }
+
+    doc.setTextColor(0, 0, 0);
+    
+    // Medalhas para top 3
+    if (item.posicao === 1) doc.setTextColor(255, 165, 0); // ouro
+    else if (item.posicao === 2) doc.setTextColor(150, 150, 150); // prata
+    else if (item.posicao === 3) doc.setTextColor(180, 120, 60); // bronze
+    else doc.setTextColor(0, 0, 0);
+    
+    doc.text(`${item.posicao}°`, 17, y);
+    doc.setTextColor(0, 0, 0);
+    doc.text(item.diagnostico.substring(0, 60), 28, y);
+    doc.text(`${item.casos}`, 143, y);
+    doc.text(`${item.percentual}%`, 163, y);
+    
+    y += 8;
+  });
+
+  // Lista detalhada dos atendimentos
+  doc.addPage();
+  y = 20;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text('DETALHAMENTO DOS ATENDIMENTOS', 14, y);
+  y += 10;
+
+  doc.setFillColor(124, 58, 237);
+  doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.text('Data', 16, y);
+  doc.text('Pet', 40, y);
+  doc.text('Espécie', 80, y);
+  doc.text('Diagnóstico', 110, y);
+  doc.text('Veterinário', 165, y);
+
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  prontuariosFiltrados?.forEach((p, i) => {
+    y = checkPage(doc, y);
+
+    if (i % 2 === 0) {
+      doc.setFillColor(245, 243, 255);
+      doc.rect(14, y - 5, pageWidth - 28, 8, 'F');
+    }
+
+    const data = new Date(p.data_atendimento).toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo'
+    });
+    
+    doc.text(data, 16, y);
+    doc.text((p.pets?.nome || '-').substring(0, 15), 40, y);
+    doc.text((especieLabel[p.pets?.especie] || '-').substring(0, 10), 80, y);
+    doc.text((p.diagnostico || '-').substring(0, 30), 110, y);
+    doc.text((p.usuarios?.nome || '-').substring(0, 20), 165, y);
+
+    y += 8;
+  });
+
+  // Rodapé
+  const totalPages = (doc.internal as any).pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.text(
+      `PetFlow — Relatório Epidemiológico — Página ${i} de ${totalPages}`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    );
+  }
+
+  doc.save(`relatorio-epidemiologico-${dataInicio}-${dataFim}.pdf`);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Components
 // ─────────────────────────────────────────────────────────────
@@ -465,6 +687,16 @@ export default function Relatorios() {
   const [mesVets, setMesVets] = useState(now.getMonth() + 1);
   const [anoVets, setAnoVets] = useState(now.getFullYear());
   const [loadingVets, setLoadingVets] = useState(false);
+
+  // Epidemiológico
+  const [dataInicioEpi, setDataInicioEpi] = useState(
+    new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  );
+  const [dataFimEpi, setDataFimEpi] = useState(
+    new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+  );
+  const [especieEpi, setEspecieEpi] = useState('todos');
+  const [loadingEpi, setLoadingEpi] = useState(false);
 
   const anos = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
 
@@ -579,6 +811,54 @@ export default function Relatorios() {
           }
           onGerar={() => run(setLoadingVets, () =>
             gerarRelatorioVeterinarios(mesVets, anoVets, toast)
+          )}
+        />
+
+        {/* Epidemiológico */}
+        <RelatorioCard
+          icon={<Activity className="h-6 w-6 text-purple-600" />}
+          title="Relatório Epidemiológico"
+          description="Doenças e sintomas mais frequentes por período e espécie."
+          loading={loadingEpi}
+          filters={
+            <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Data início</Label>
+                  <Input
+                    type="date" value={dataInicioEpi}
+                    onChange={e => setDataInicioEpi(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Data fim</Label>
+                  <Input
+                    type="date" value={dataFimEpi}
+                    onChange={e => setDataFimEpi(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Espécie</Label>
+                <Select value={especieEpi} onValueChange={setEspecieEpi}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as espécies</SelectItem>
+                    <SelectItem value="cao">Cão</SelectItem>
+                    <SelectItem value="gato">Gato</SelectItem>
+                    <SelectItem value="passaro">Pássaro</SelectItem>
+                    <SelectItem value="roedor">Roedor</SelectItem>
+                    <SelectItem value="reptil">Réptil</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          }
+          onGerar={() => run(setLoadingEpi, () => 
+            gerarPDFEpidemiologico(dataInicioEpi, dataFimEpi, especieEpi, toast)
           )}
         />
       </div>
