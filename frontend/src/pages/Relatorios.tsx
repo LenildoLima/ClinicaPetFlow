@@ -651,7 +651,7 @@ function RelatorioCard({ icon, title, description, filters, onGerar, loading, bu
           <Button
             onClick={onGerar}
             disabled={loading}
-            className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
             {loading ? 'Processando...' : buttonLabel}
@@ -1020,7 +1020,7 @@ export default function Relatorios() {
 
         {/* Epidemiológico */}
         <RelatorioCard
-          icon={<Activity className="h-6 w-6 text-purple-600" />}
+          icon={<Activity className="h-6 w-6 text-green-600" />}
           title="Relatório Epidemiológico"
           description="Doenças e sintomas mais frequentes por período e espécie."
           loading={loadingEpi}
@@ -1093,11 +1093,11 @@ export default function Relatorios() {
                 {/* Cabeçalho do Relatório para Prévia */}
                 <div className="flex justify-between items-start mb-8 border-b pb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-indigo-900 leading-tight">PetFlow</h2>
+                    <h2 className="text-2xl font-bold text-green-900 leading-tight">PetFlow</h2>
                     <p className="text-muted-foreground text-sm">Clínica Veterinária</p>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50 mb-1">
+                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 mb-1">
                       RELATÓRIO OFICIAL
                     </Badge>
                     <p className="text-xs text-muted-foreground">Gerado em {new Date().toLocaleString('pt-BR')}</p>
@@ -1126,9 +1126,9 @@ export default function Relatorios() {
                         <p className="text-xs text-green-700 font-semibold uppercase">Faturado</p>
                         <p className="text-lg font-bold text-green-700">{fmt(previewData.totalFaturado)}</p>
                       </div>
-                      <div className="p-3 border rounded-lg bg-indigo-50/50">
-                        <p className="text-xs text-indigo-700 font-semibold uppercase">Recebido</p>
-                        <p className="text-lg font-bold text-indigo-700">{fmt(previewData.totalPago)}</p>
+                      <div className="p-3 border rounded-lg bg-green-50/50">
+                        <p className="text-xs text-green-700 font-semibold uppercase">Recebido</p>
+                        <p className="text-lg font-bold text-green-700">{fmt(previewData.totalPago)}</p>
                       </div>
                       <div className="p-3 border rounded-lg bg-amber-50/50">
                         <p className="text-xs text-amber-700 font-semibold uppercase">Pendente</p>
@@ -1245,9 +1245,9 @@ export default function Relatorios() {
                   <div className="space-y-8">
                     {Object.entries(previewData.porVet).map(([vetNome, data]: [string, any]) => (
                       <div key={vetNome} className="space-y-4">
-                        <div className="flex items-center justify-between border-b pb-2 bg-indigo-50/30 p-2 rounded">
-                          <h4 className="font-bold text-indigo-900">{vetNome}</h4>
-                          <Badge className="bg-indigo-600">{data.total} atendimentos</Badge>
+                        <div className="flex items-center justify-between border-b pb-2 bg-green-50/30 p-2 rounded">
+                          <h4 className="font-bold text-green-900">{vetNome}</h4>
+                          <Badge className="bg-green-600">{data.total} atendimentos</Badge>
                         </div>
                         <Table>
                           <TableHeader><TableRow>
@@ -1274,13 +1274,13 @@ export default function Relatorios() {
 
                 {previewType === 'epidemiologico' && (
                   <div className="space-y-6">
-                    <div className="p-4 border rounded-lg bg-purple-50/30">
+                    <div className="p-4 border rounded-lg bg-green-50/30">
                       <p className="text-sm font-semibold mb-3">Distribuição por Espécie</p>
                       <div className="flex gap-6">
                         {Object.entries(previewData.porEspecie).map(([esp, total]) => (
                           <div key={esp} className="text-center">
                             <p className="text-xs text-muted-foreground uppercase">{esp}</p>
-                            <p className="text-lg font-bold text-purple-700">{total as number}</p>
+                            <p className="text-lg font-bold text-green-700">{total as number}</p>
                           </div>
                         ))}
                       </div>
@@ -1298,7 +1298,7 @@ export default function Relatorios() {
                         <TableBody>
                           {previewData.ranking.map((item: any) => (
                             <TableRow key={item.diagnostico}>
-                              <TableCell className="font-bold text-purple-600">{item.posicao}º</TableCell>
+                              <TableCell className="font-bold text-green-600">{item.posicao}º</TableCell>
                               <TableCell className="font-medium">{item.diagnostico}</TableCell>
                               <TableCell className="text-center font-bold">{item.casos}</TableCell>
                               <TableCell className="text-right text-muted-foreground">{item.percentual}%</TableCell>
